@@ -1,0 +1,2863 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Checklists RICOMA</title>
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Checklists RICOMA&quot;,&quot;short_name&quot;:&quot;RICOMA&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#ffffff&quot;,&quot;theme_color&quot;:&quot;#ffffff&quot;}" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Checklists RICOMA" />
+
+  <!-- =====================================================
+       FIREBASE CONFIG — SUBSTITUA PELOS SEUS DADOS ABAIXO
+       Siga o passo a passo enviado junto com este arquivo.
+  ====================================================== -->
+  <script>
+    const FIREBASE_CONFIG = {
+      apiKey:            "AIzaSyC29AEmBVxttHOcd-PvWpe5e1gNETQNXTA",
+      authDomain:        "ricoma-checklist.firebaseapp.com",
+      projectId:         "ricoma-checklist",
+      storageBucket:     "ricoma-checklist.firebasestorage.app",
+      messagingSenderId: "541858226626",
+      appId:             "1:541858226626:web:e4c1cb9b43e4648457365b"
+    };
+  </script>
+  <!-- =====================================================
+       FIM DA CONFIGURAÇÃO FIREBASE
+  ====================================================== -->
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f4;
+      --bg3: #eeede9;
+      --text: #1a1a18;
+      --text2: #6b6b67;
+      --text3: #a0a09c;
+      --border: rgba(0,0,0,0.12);
+      --border2: rgba(0,0,0,0.22);
+      --info-bg: #e6f1fb;
+      --info: #185fa5;
+      --success-bg: #eaf3de;
+      --success: #3b6d11;
+      --danger-bg: #fcebeb;
+      --danger: #a32d2d;
+      --warning-bg: #faeeda;
+      --warning: #854f0b;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a;
+        --bg2: #262624;
+        --bg3: #2e2e2b;
+        --text: #f0ede8;
+        --text2: #a0a09c;
+        --text3: #6b6b67;
+        --border: rgba(255,255,255,0.12);
+        --border2: rgba(255,255,255,0.22);
+        --info-bg: #042c53;
+        --info: #85b7eb;
+        --success-bg: #173404;
+        --success: #97c459;
+        --danger-bg: #501313;
+        --danger: #f09595;
+        --warning-bg: #412402;
+        --warning: #ef9f27;
+      }
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; }
+    #app { max-width: 480px; margin: 0 auto; padding: 1rem; min-height: 100%; }
+    input, textarea, select, button { font-family: inherit; font-size: 14px; color: var(--text); }
+    input, textarea {
+      width: 100%; padding: 10px 12px;
+      background: var(--bg2); border: 0.5px solid var(--border);
+      border-radius: var(--radius); outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus { border-color: var(--border2); }
+    textarea { resize: vertical; }
+    button { cursor: pointer; transition: opacity 0.15s; background: transparent; border: 0.5px solid var(--border); border-radius: var(--radius); padding: 8px 14px; }
+    button:active { opacity: 0.65; }
+    img { display: block; }
+    .lbl { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pill { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+    .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; }
+    .surface { background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; }
+  </style>
+</head>
+<body>
+<div id="app"><p style="color:var(--text2);padding:2rem;text-align:center;">Conectando ao banco de dados...</p></div>
+
+<!-- SIGNATURE MODAL -->
+<div id="sig-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9998;flex-direction:column;">
+  <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--border);">
+    <div>
+      <p style="font-weight:700;font-size:17px;">✍️ Assinatura do Cliente</p>
+      <p style="font-size:12px;color:var(--text3);">Assine no espaço abaixo com o dedo</p>
+    </div>
+    <button id="sig-cancel" style="padding:8px 14px;border-radius:var(--radius);background:var(--bg2);border:0.5px solid var(--border);font-size:13px;cursor:pointer;">Cancelar</button>
+  </div>
+  <div style="flex:1;position:relative;background:#fff;overflow:hidden;">
+    <canvas id="sig-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;"></canvas>
+    <p id="sig-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ccc;font-size:16px;pointer-events:none;text-align:center;user-select:none;">Assine aqui com o dedo</p>
+  </div>
+  <div style="padding:14px 16px;display:flex;gap:10px;border-top:0.5px solid var(--border);background:var(--bg);">
+    <button id="sig-clear" style="flex:1;padding:13px;border-radius:var(--radius);background:var(--bg2);border:0.5px solid var(--border);font-size:14px;cursor:pointer;">🗑️ Limpar</button>
+    <button id="sig-save" style="flex:2;padding:13px;border-radius:var(--radius);background:var(--success-bg);border:none;color:var(--success);font-weight:600;font-size:14px;cursor:pointer;">✓ Confirmar assinatura</button>
+  </div>
+</div>
+
+<!-- LIGHTBOX MODAL -->
+<div id="lightbox" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <button id="lightbox-close" style="position:fixed;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  <img id="lightbox-img" src="" alt="Foto ampliada" style="max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain;" />
+  <div id="lightbox-caption" style="position:fixed;bottom:20px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.7);font-size:13px;"></div>
+</div>
+
+<script>
+// ── AUTENTICAÇÃO ─────────────────────────────────────────
+const SESSION_KEY = "ricoma_user_session";
+const SESSION_HOURS = 24;
+const ADMIN_KEY = "373737"; // senha para funções administrativas
+
+// Built-in users (stored in Firebase, these are defaults)
+const DEFAULT_USERS = [
+  { id:"u1", name:"Vitor",   role:"admin",     pin:"1234" },
+  { id:"u2", name:"Luiz",    role:"mechanic",  pin:"1111" },
+  { id:"u3", name:"Iodenir", role:"mechanic",  pin:"2222" },
+];
+
+let currentUser = null;
+let allUsers = [...DEFAULT_USERS];
+
+function isAuthenticated() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if ((Date.now() - data.ts) > SESSION_HOURS * 3600 * 1000) return false;
+    currentUser = data.user;
+    return true;
+  } catch { return false; }
+}
+
+function setAuthenticated(user) {
+  currentUser = user;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ts: Date.now(), user }));
+}
+
+function logout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  currentUser = null;
+  showLogin();
+}
+
+async function loadUsers(db) {
+  try {
+    const snap = await db.collection("users").get();
+    if (!snap.empty) {
+      allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } else {
+      // First run - save default users to Firebase
+      for (const u of DEFAULT_USERS) {
+        await db.collection("users").doc(u.id).set(u);
+      }
+    }
+  } catch(e) { allUsers = [...DEFAULT_USERS]; }
+}
+
+const LOGO_DARK = "data:image/png;base64,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";
+const LOGO_LIGHT = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATEAAAB0CAYAAADthwUDAABK1UlEQVR4nO2ddXhbZ5bwz70iy8woGQVmklmmMKdJk4ahSdqm7Uw7szM7tLPdmdnu7HyzA50pTDFpmJnRIMkyM4lMMjNbrPv9Ydl1HSeWZCdx0vt7HsXOvfcFybrnnve8BwBwcHBwcHBwcHBwcHBwcHBwcHB+WCDPewILHamsBe3s6vRRKBU2Uw5Pfm4WFIsREomkRBFUTyKRlBZU6kgQ20fzpD4FwmI/hVJhPdEP1YI6TCQS1VO6x4hEgoZIIKqpVOoIm+Wtm993tXAQS+QEhVJpqVGrqVqdjoRhGKJQjNno9HoCiUhSubu7N058noUlNS79/X1uGIahhuZTv79P+i7rLSwsRtxc3RoDWd76mS4oq5DYKJQKa61WS1YoFNZTxpg/MGwh3G9mzQGbuR02S5/Tj2MAoLe2tu53cnRqCWL7YDM1MpWF8KEuaPg5xf6fffX51719vf4AgAIAAcY/NxQAMAKBoEJRVEMgENTWVtZdLs7OjYwARlFkWMR9d3e3OhaD/shN838fffbTB5kP38YwzAoAEAKRoEARVDtxHkFAR6FYDFItLAY9PTwl4aFhGcGBwUJOVFDPs3rfT5v8wgqPqtoarkgsSurs6vQdHhlxVKlUNgAYaLU6CoZhEBkecWvPjl1/CAthjFbV1FNPnTv928KSos2AARHG/wYTfwdkhhfA+E2jAwRG05LTjmx6ZeNfg9g+3/t7lFdJrXOEOa8WlhSt6ent9dZqtRStVkudoZ/H3XDG3MAIwIwCbPqxJwllYwWFqX0bM6/pzCZ8Jj47wpTfdQCgJhKJ/RvWbfjfg/t3nZ2lD6MhzldHLyNSWQt66dqVzU3NTVy9Xk+Z7fqu7q6Q+sZ6KCot3pWRlVG7Yunyj6tr6k+FBPsrpl4XE825ly3gHejp7aHN1mddff2K/MKCXX6+fsJzl258EhEanslmeWtna7dQqRU1kgqKC1d99NnH77a0tsRoNBpHmOGmsbS0bIiJjrkfFsIYBQBokjeFFpYUbR0aGmKYOqa9nb04MjwiY7oAqxU3kW7fu7Pn6s1r/6FUKr3MflM4RuNN924ICQoRzmef868yv0R0dHb65RbkbTVGgE1Fp9OR2js7ws9cPPeX67dv/KSqus5y6nkvD09RQmz8GRRFVbP1hQGGqtQqJ5FEtO6bI4f/lcHL2iWWyF/Ih091Tb3F7ft33jx26sRHDY0NKzQajRPM/NTXBrEDs4IDA4UAALWiRjJPwNs+NDTkZ+qYKIpqOFGcK74+vhXTz7W1twdk8rLexAXYs4FAIIylcVOOOTk6tsxnv7gQewwSaTNBmJ+3saurK8jcPpRKpcOte3d+/SArY59E2jz5WbNZ3vrkJO4FZyfnGlP6GxwaZFy6evmD3IL89RJZ8wtlChBLmxG+ULD5+u2bvxwZHfF/0rWWVMu2tOS0UxNaWENjQ0RZZcUaGF+emISDvYMkPSX1ZGiQn3rq8VpxEzGvIO+Vnt6eYFP7xDEPb7p3fnQU5/Z82cImwIXYY2jv7PAT5gu36fQ66lz6UalUdrfu3v5ZeVVF+tTjNE8vSRwn9gKCIEpT+hsaHvK/dO3yf9TV10fNZV7PGpFYlHDt1o1fjI2N+cxyqSYoMOhBEJudDwBQXVtvmSXgbR8cGnyi4JsJBEGUsdExF2leNNH0c9093d6FJUUb9Ho92dR+cUyHRCINpSQln3Cwt++Y775xITYDEmkzyhPwt3V1d4XMR3+DQ4P+V65f/UVeQfnksoXJoGHcxKTLzk7Otab219Xdxbl28/pPS8vF9vMxv6dNYXGV65Ub137e29cbPtu1VpZWzenJqafCQ5nDAABSmSy6pKx0A4ZhJi+hHR0cZdzEpPPBgb7f2y0WS5uR4tLS5V3dXbPOB2d+oNPohdGR0bcRBJlXLQwAF2Iz0trWxswvKtis1+st5qvP+saGpQ+zMndNXVbSPL0kyYncEwQCYdiUvjAMg8qaqnU5ucLN8zW/p4VE2oxkC3jbxVLxitmuRRBEGxYSdj84KCgXAKC6pt4yi8/bOTwy7GvquCiKqmKiOVdoXjTx9HODQ4MuhcWFa3U6neVMbXHmFyKROJScyD3hYG/fEcjyxoXY00YskRMFuTmv9fb1Bs5nv3q9nijIFeyua6iPmDjGYtJ1yYlJV9xcXKtN7U+j0dg/yHr4ViYvnz2f85xvmuTykGwBf49Op7Oe7VorK6vm9JTUk6HBAWMAAJI6WXRVTdUKMMMVyMnRUZKSlHxmuhYGACCWiGNaWptjTO0Txzz8fPz40ZFRd+EpuXThQmwabe1tjLzC/C2m7kgaQ//AQMidB/fenLpb6e7m3pAYn3AORVGTbGMAAJ1dnREZ2Vl7RJKmBblbWVVTT72f+XBfd093xOxXgz4sJOwuM4BRMt62zjqbz9sxMjria+q4CIIoE+MST89kC6uubSCXlpctVanVLqb2i2M6ZDK5Py0l9bi9nX3n4xyN5wouxKYgkTYT+Lk5W3r7ep+KdoNhGJRXlK+vrq3hThxjBHhhiXEJ19xcXStN7U+v15MLigo2SWWyBalVSKSS2KLSoo0Yhs26q2hjbdOUxk05HRoSMAoAIK2ri6ysqVyJmeHl7uLsIkqMT7gUxPZ5JNJhbGzMtqW1JRDw7/4zwc/HjxcRFp7xNGxhEyzIJ/jzoqlZHpRfmP8ahmFPbcdKoVR43ct48EZ5pTQvImzceO3m6taQFJ945sr1ayE6vWl2msGhQWZGdubequq6itCQ8WXYQqCqus7qX19/sX90dHRW3y4EQbCQ4JD7LAazEACgslpm8/W3h3aPjJiuhaEoqoyPjT/v4e4hm+m8RquhaLSaebOFEQiEURKJ1AOAaOH7yyUUHo0mAPi+9z82w3E9fD+cZ6ZIhMeBPeZ3Yx4ETxIyM/U79Rg67YUAAEYkEkdSuSknbG1se5+GLWwCXIgZEImbSCfOntre29f31G1M0jrpotLy0qUAcBkAgMWk63NySy7lFxVuamltSTKlLwzD0LLK8tUiifg8AGQ8jfmaQ0VVZVqtWDSrMR8AwNbGtm5xavqxkGB/hayuFSkpK42vNNMW5uLsUsNNSDw/kxYGAGBjbdPv4e4pamtv58I8fP+tLK16Vixd/k8mg5mLouh0QfYdGCCG+/5x7+lxAuhJbYxlXmxR2BP/OzkGMnEORVEtzdNL+rSWkRPgQsyAvKU5qLC4aCOGYaSnPZZKpXJ5mJVxoKikRhATHdwNAMBNjG78x2dfnzh36XyETqezMqW/sbEx7/uZDw9UVMkKwkMZI09n1sZTWi52+PTLf+0bU4y5G3G5Lioi8jozgFEMAKBQKGyyBNk7jfAnewQEQRTxMXHnPdw96h53DZlMVixdtORYQ2NDXF9/XyTM8QYfGh7yzBbwttnb2TcnxMVfDQ3210hkLRNaE8Zi0GbUQCSSR5yVHxdgber8norxfFxNxKZqjU+6dPLn09TAJsDtAjBuC+MJ+NsGhwZNjsszl/rGhtSSstLvaSrxMbE3vDw8S8zpTywVL6qqqU6Zn9nNjcrqqlSJTLLYmGvt7OzqU7kpp4OD/JSyulakViKKrxWJlpszrrubezk3kXv+SU9+NpOOBbED83du3f5bVxfXPGT2YObZIHV1d8WcPHvyL+cvX/h1flGlO0zRSgwC7RFYLPr0cbEZXjMdn43H9WMOj5uLUWM9CwEGgGtiAADQJJcHF5eVrDdHCyMQCCrAMKJOrzcpJEar1dpk8rP2FBZX34vlhHQBADg7ObdwE7mnWi+dj9TpdDaz9TEVhULhkcnL2ltWIc6NDGcPmNJ2PiktFzl89NnHB9RqteNs1yIIoosMi7jp7+tXDmDQwvi8nWOKMU9TxyUQCKPchKQz7m5uDdPP1Yob0SC276RgC2L76EQS+T1bG9veMxfPfVDfUL98jnZQdEyh8L338MHPW9vaAl/buOnPvj6+lWzmI4IKSsvEdlqtlgwAMDg0NFXAzXTDG5vJYjbmqp1h4//MqolhAAAEAkFjaWk5MMcxjeYHL8RqRY2UE2dP7egf6GeZ2hZBkNE4TuzZwaFBtxpR7SowUbOVN8uT8gryNkhlLV8zGTSMyaBhufnlN3PyhFvlzfJ0U+cjkoiWlFVULAaAS6a2nS+Ky0qXNzQ2GKUR2tra1qclp54KCvRVAwBU1dYk1Yprl5ozrrube2lCXMLV6VpYWaXU+uLVKwfPXrxREhYSyg8O9NUCAASyvHViaXPhO28cfO/azRvv5Rfm71GpVc7mjD2BXq+zq6qp2tHT2+O7fs26v1bV1N8MDfafjNkUi+VIVU116N2H994YGBz0wgAjwXg86HjKoO+Ybsh/xN40z5gq5KZrXZPzQgBRc6I5V9esXP0FADyTbCs/eCHW0NgQll9Y8Jo5Wpi9nX3TiqUrPunr66XVNdTHqlQqV1Paa7VaK75QsCOWE3sTAFoBABLjI5r/+dnXZ861t0VptVo7U/pTq9XOWfzsPWUV4oznoY0Vl9Y4/+OzT3ar1Wr72a5FEETLiYy+OqGFlVWIHT798vO9Y2NjJmeUQBBkJDE+8byri0vT9HNiiTj+YebDgzwBT71i6fJPyyokxyPDWaOGdpCSxGksr5T+3tPDQ3bn/t2fDAwOzGljB8MwaO9oTzp+6sQ/29vbWEUlNV/HRAf3AQCw2d5YbW1jgR7Tkc9fufQfzc3NyeaEUy1krK2tmxj+AaWhQX7PLF3UD9omJpLISZn87N3DI8PmpHhRxURxrvr5+FSHBIfw2Ax2ljlzaGlrjS0oLlwjnWI7SYxPuOZN9841p7/6xnpuWUX5EnPazpWyivLF9Y31ycZc6+DgIE1PSTsZFOirlspakKqa6mRpnTTNnHE93D1K42Pirk9fvpVXSa2yBbztY4oxxuDQYMiVG1d/f+z0iQ+zBYV+Yum4YV0ia0EiwpjDK5YuP/TG6/vf9fP1e4Ci6Jwz6Y4pxui37t35zTdHD/393kNBqEgiRwAACASCNjwkPOudAwffjY+J+5pMIvfNdayFAoIgWFhw6C2Gf0DZsxz3By3E6hvqIsrHU7yY/Dk4OjjKFqWlnwhk+2giw1lDaSmpxy0sLEyO0NfpdJbZ/Oy93T3d9IljcTFh7anclFNEInHA1P5UKpVzFp+3u6RMNKtNaj4pKql2zcjO3GeM9ogiqJYTybnqQ/euBgAYHRu1z+bzdiiVSg9TxyUSiX2p3NSTj9PCasW1k64aarXaTZgnfOeLQ1/9s7K6Klmn06EsBg2TyFpQIpGoDQ8Nz3rnzbffiY+J+4ZEJA2aOpfpaLVau7KK8j1fHvr608LiojXVNQ0UAEAQBEG8PDxlr+/c8x/rVq/9bxtrawk8nWXiM8XW1rZ+cdqioxQK5Zn6K/5ghViNqMEii5+9c2jY9ER7CILo4jixl2ieXpKJY2EhoTwWg5VtzlzaOzuihPl5G6ZqYzFR0fd96N755vQnq5cll5aXLjOnrTlIZC1IQXHR6qZmOXf2qwEcHBzEqUnJZwLZPhpZXStSWV2dLKmTmrWz6uXpVZQQF39tBluYTbaAv31sbOx72XMxDLOob6hf982RQ5/dz3iwt7xSagUT9hwEAQ8397rdO3b/dsO6Vz6wt7N/JGzJVDAMQ1raWtKOnjr2j2u3rr8/NDw8kQgSsbK0GlyzfNWX+3a9/lNvuncGgiBP1Z/qaYKiqCIxLuGkn69f+bPalZwc+1kOtpBoaGwIKykrW2dOQQgnRydxchL33NQ00RFhzKGli5YcolKp5mhjVGGecGtXd5f3xLFYTmhHclLyaSKRaLJGoNFonDJ5WXuLS2vmZKg2lv7+fndeDn+3RqOZdUcVQRAdJyr6qjedXgMAMDIy4pAt4O00J7sqiqL9yYncs44ODo985vUN9ZEGLWzmOQ/0h124fPF/Tp499buu7i46i0Gb8JRHbKyt+1avXPXF67v2/oROo2XPh3AZHh4OuHHn5n8eOXXsjy1trUxDOBVCIpHUMVGce2/vf/O96IioY0Qi8bn7+ZmDN42etzht0ZGwkACTY4Dnyg9SiNXUNlg8yMzYNzwybHKiPRRFtbGcmMs0Ly8RAIBI0kQWS+QkAIDgwEBhSGDwXXPixNo7O6LzCvNf+b42xrnrQ/cxyzbW1CxPKCotWWlOW1MpLitZIW+WxxlzrYODgyQlkXsukO2jkcpa0NKKsiUSmcQsGx7Ni1YcE825O90WVi1qpOTk5mweGxujP64tAIBKrfLgCwU//vLQVx9fvXE/XqfToWAQZEQCURsdGfXg3TffORjLiTlEIs3L8tK2qKRo/xeHvvykuKxkqVarJQIAIAiip3vRxft2vf6rNStW/4+1tXXjXMd6ljg6OFZvXLfhT64urvLnMf4PUohJZNKYiurK1WBWihcncUpS8hk201srq2tFCoqK1pRVVqQBAISFMEbTUlJPUKnUNlP71ev1Fjl5ud/TxuJiQjsWpy06QiaTu0ztT61WO/AE/J2FxdVuprY1hcLiKjd+jmCXMal2UBRVJ8TEn/Ome9cAAAwPDztl8Xm7VCrTXRuIROJAcmLyWUcHx0e0sPb2toBasSgNw2Z/luj1eqpEJn3lq2+//lcWL2ubUqmkGrQyBEEQoHnRJK/v2vubtStX/7e1lfWM8ZimgGEYoalZvvTbE0c/uv3g7hujo6N2YPge2tna9ryyet0/927f8xNPd4+8uY71DNC5ODuXvfbq5v8KCw3Lflyo19PmByfEqmrqrTJ52XtGR0dNDmtBUVTFTUg6SfPyEgMADAwOut3PePDW/YwH+8vKxXYAAMHsoNxgdtB9c+bW0dnByRbwt0mkzZOOs9ERkQ/9ff3Nqg7TKG9MMMRoPhUk0mY0v6hwbXNrs1FamLOTc00Kd9wWBgBQWlG2uL6x3ixbGN2Lnh8XE3srcIaanNWimsT+gX6TXCV6enujz1w896cz58/8VphXRoMpQdg21jZ961av+9fru/b+1MvTKxtBkDnfrEPDQ0FXrl/9/dHTxz9s62gPmDBrkEgkdXxM7M23D7z1dmRYxCkikaiYra9nDEYgEMZsbWwl8bHxXx3c/9ZbCbHx10Om1TB4lrxUPirGIK2TRVdWV64y5ik9HVcX16qk+MQLbKa3RlbXimTxs5c2NDUkowg6VFpRtggAroSGBIyev3TzRLWoZplCoTDJzqPT6Sh5hfmbkxISLwGAFAAgOiqo59DR06fqG+uT1Gq1qX5o9tkC3q6ikur7MdEhJmtzs9HT2+uVxc/eZ6QtTB3Libnk7uZeDwBQUlbr/M9/fbpNrVY7mDoukUDsS09NO+7k6Ng+/VxVTT31y0NfcczJyqtUKulZAt5P2js7Ga++svGvzABGCYqiGBhsV3ExsXfc3d0bLl6++MuK6sqNOp3O1tQxpqLWqF3yiwoOdHZ1+W9av/EvIUHBOQQCQYcgCObn41f5xt79P7t1746Yl8Pfq1KrXGF+lI4nedtjAIAhCKInEohqQEBHJBBUBAJRaUGhDFjb2Ha6Ojs30Wg0EYvBLKB50cUWFMroszbkT+cHJcRqahuoXx7+Zs/o2Ois9R6nQyAQVAmx8Rc93MdvwoHBQddsAX+7RqOxBgDrLD5vZ0lZbXZ0ZFB/EDswLyI0/EZ+UcEBU50Zu7q7w4V5ua9KpM1/YTHHC+9GhUdm8HIEQpFEtMHUeTfJ5Ql5BfnrJNLmw6wZwmDmQkFxwZrWtlajCpY4OznXJsYlXkJRVCeSyInCPKHZWpiPj09uVETkw5mCq3U6Hamvv9/ksKUp7a1qxbWvfXW4x3ftqjX/SIpPvEqhUJQwvrzEfOjetfv37Pv13Yf3RFm87NdHRkfm5Byr1+st6hvrV31z7DB91bIVn6VxU89aWloOAQBmZ2vX/er6jX+LCIt4MDY2NuG6Mi8hRE86j6KozoJCGUNQVEchk5UWFMqYBZU6QiSRVBYUygiRSFQ/b8E1lR+UEKsVixKqaquMSg8zHRdnl5qkhMSLLCZdBwBQWl66pFHeOJk2p76xPqWsonwRAFwKDQkYvXL93vHq2prlpjrSYpienFeYv5mbkHQRAGQAANFRQb2Hjp45Vd9Qz1VrTMtIqtFq7HlCwY6Y6Jg7YIgKmA9y88tpf//kox16vX7W3FwoiqpjOTGXPT08ZACA9A/0u2fysnar1WonU8clkUi9qdyU0/Z29p0zjkUgaB3sZz5nLBiGIV3dXXGnz5/5c2tbG2v1ipVfGWxvCAAg9vb2na+u3/gRzdNLdOXGtZ91dnUmzDX7Sf9Af+iFq5c+bG1vY69ftfZjF2eXZgRB9BQyWRHMDswFmDFoHAd+QDaxiiqZ7YOsjH0jIyNP3LGaCRRFVYlx8ec8DEuhgqIq90x+9vfCa9RqtVu2gL+jpEzkAADAYjCLw0JC78D3Y+KMorunO0yQm/PaVNtYVERkBjOAwTe1LwCAltYWTlFJ0bztVEqkzWh+Yf76to72aGOud3VxqUhO5J4jEAg6DMMIxaWlyxsaG43y7J+OD907nxMZfW+m4GoAADKJpEyMT7hsbWU1ZyO8QqGgP8h88O/fHDn0N1mdLFKv10/GCJJIJHVifOL1gwfeej8sJOwMkUA0qdjLTKjVame+UPDuF4e/+rSqtoar0+km/v4IACASSTNqeL1QNUefNj8YISYSi+JqRbVmbeV7uLuXcxOSLrCYdK1U1oIUlhStaZI3JU6/rr6xPrW0omyxrK4VCQ7yU6Ylp56ysrIyudqxXq+n5BbkbZG3NE8WK4mODOxdlJZ+1MyoADt+bs62gvE0MXOmu6eHLsgT7tBqtbPmPRt/ACRO5PhCBgYHXIV5wi0arcbe1HFJRGJPCjflVCwnpPtx17CZdH1EWET2iqUrPrGkWjaaOsZ0dDqddVVN9fYvDn31WW5B3lqNRkOcWMaiKIox/APKD+zd96sli5b8lUqlPhI1YCp6vZ4srZOtPnTs8CdZ/KwdSqWSymLR9dNeuEY2hR+EEKuqqbfM5GfvUSgV5qR4UXATuGfc3dwbAAD6+vs9+Tn8HTOF16jVapeMrIy9/QP9LgAAzABGUURo+E0EQUwOhu3p7QnlC3O2iCXyySV/eEhYNjOAYVZUQEtrS2x+YcG6qSXjzEEibUZz8oSvtra1GqWFubm6lcfHxl9BUVSvx/SEkrKy5fIW4zz7pxMQwOBxojh3Z7suNNhfsXrFqq+2bt7yn06OjhXmjDUVDMOgs6sz8fipE3+7eOXSzwuKq1ym2OMQRwfHjtc2bvrbzi3bf+nq4pqPIHNXlHr7esNOXzz3p9MXzn4gzC012Yb7Q+IHIcRqRLVJIonIqCR90/Fw9yhPjEu4xGTQdLK6VqSopGh1c2tL7OOub5LLk4tKS5YDAIQE+yvTU9JO2tjYmPyExjCMWFRStLG5tWXScBwRzhpMT0k7TqFQTNbGtFqtXZaAt7urp9t79qsfT0dXp19uft5WvV4/a2V0AoGgTIiNv+Dq4iIHABgYGHQV5Aq2GTZDTIJCoXSmcVNP2drY9BpzfWiwvzItOfXcgb0HfhzgH3AbRdFHSreZyujYaMDdB/d+ffjot3++n5ETjI1vcWMAgFAoFEUKN+XSwQNv/SiIHXgBRQlz9lxXqVQe2Tm8H3915NBH1289jBWJmn4Q96upvPQfSkWVzDaTl/m6OSleUBRVcBOSzrg4O7cAAPT193nyhYKdWq32sS4FGq3GgZ8j2F5YXO0CAMBmsgqjI6Kughm5lfr6+4L4OYKtU7WxsOBQAYvBzDK1LwCAtva26LloY2KJnCDMz9vY2d0ZZsz1ri6uFQlxCZcJBIIGwzC0uLRkhbxZ/sgy3Bj8ff1zIsLDMx9nC5uJILaPJjQ4JOftAwd/nBiX8CWZTDZKAD4JrU5rV1ZZvvfzr7/4LL+wYLVGoyHDdznl9SwGs+TNfW/8bFFq+kfmLP2nY9gt3fzl4a8/5+UItlZWyvCCv9N46YVYZVVlWk1trVnB0B7uHhXxMXFXmQyaTiprQfMLC9Y1t7ZwZmsnb5FzS8tLl8nqWtFAto8mLTn1lK2NrcnamF6vJxaWFm2YQRs7QaVSzbG1WQnzcrd09/SYvLkBANDZ1eWbV5C32ZjK2SiKKhLiEs4btDCkt6/Xk5fD22mMHW06ZDK5M5WbcooTGWRy2ho2k65P5XLqd2/f9cHGdRv+y25+grrR1va29GOnjv392s1r7w4NDTnBFOdYZyfnlm2bt/zv1k1bfuXk6FQ+1/EAALp7ujmnzp/+08Wrl36RX1BhcraPl5mXWohVVErtM/nZrytVSpOcRAEADOWmjk0shbp6un2y+Ly9Wq121qWQTqejDg8PO0/UTPTz8a2Mjoy6iiCIyUuavr6+4Cx+9g6RuGlyCz8iNDw7aDwqwIwYzfao3IL8V0zVxsRSOZpbkLe+s8s4LczLw7MoKX7cL0yv1xMKi4tWt7W1PXYZ/iQC/AIE4WFhZtkCJ4iKYA+sWr7yq/27X3/P19vngTl2yukMj4ywbty59Z9HTh79H3lzM3uKAzViYWExuig1/fRb+954l8VgXkdRVDXX8RRKhc+9zAc//+rIN3+/dSczGl9ejvNSfwgV1ZVp0jrpInPa0rzohUlxCVeYDJpeKmtB8woK1rd3tht1A7s4u4g40Zw7TAZNBwAQFOirTktOPWVra9to6jwwDCMUlhRtbGhqDJ04FhbKGElPSTtJpVJN9vvS6XRWwnzhlq7ubpPCrlrb2lg5ecJtxviFEYnEUW5C0llnJ6cWMGhhOXnCLVqd1uSlkIWFRdvitPRjMVHBPaa2nU4Q20cbFRH58OCBt34UFxP3zbwsL7Vax+KSkgNfHPryk6LS4qVarRadiL0kEAi6oMCg/Lf2v/V+SlLKZxQKZc7vQafT2VTX1mz96sg3H+cW5K2vrKozOTLhZeOlFWLllVK7LH72HqVSaXJYC4FAGE1NSj7taAhr6e7poQvzhVuMKaWGoqgmPibuvJeH5/f8lAL8/MuiwiNvGIqsmsTg4CArW8DbPlUbC2YH5gexgx6a2hcAQHtHe1ROnvBVY7UxsUROFOTmbOru6Q435noPd4+SuNi46yiK6jEMQ4tKile2tbfNugyfCRaDlRURFpFpTtuZYDPp2OK0BMnrO/f8x7pVaz+0sbaWzrVPPaYnNrc0Lz1y/OhHN+/cerukXDTxnUMQBAE3V9emnVu3/2HT+o2/dbB3qJ3reBiGIe0dHdxjZ0787fL1Kz8rKKx8qkH+C52XVohVVlemSmTmpTume9GLYqKjbzMCvDCDLWx9e0d7hDFt3VzcqpITuWeZ40/jSdgsb93itEVHHeztTXbCxDCMUFpRtvZRbSz1pKWlZbOp/en1ekthfu7W9o4Oo1IRtba1MQqKCjcZE4+IoqiCG594ztHBsR0AkN7eXi9hfu5mY7JcTMeCYtGanpJ6cqJS+nwSHRnYv2bl6i/27X79fW8aPWOegrqDr9289vujJ4592NrWFmBYXmIAgFItqCPLFi099sbe/e8y/APuzMdu6djYmP/dh/d+dfj4kT/feyAIFYmaflAROBO8lEKstFzs+DAr4w2VSmVyWAuRSBxK4SafdHR0agUA6Oru9hXk5mwzRgsjEAiKlCTucU8Pj/qZzvvQvatjo2MuIQhisn1kcHCQzcvhb6sVN06WFgsODBYGsgIfghm2sa7urtCcPOEmsUT+xFJzYomckJMnfLWntyfYmH49PTyLYzixNxEEwXQ6HUmYn7uxta01wdT5AQCwmKyskKCQHHPaGkNIkJ8qJjrm7ttvHPxRVHjkCSKRODTXPtUajVN+UcFbXxz68uOKqsoUg9f9eI4yIlETFhzKP7jvzfcSY+O/IpFI87GctS2rLN/9xaEv/1VYUriqpqZhLqXnXkheSiFWUlayQlZfl25OWzqNXhjHib3BNGhhfKFgS3tne6Qxbd3d3CsS4uKvTNjCphPI9tGmJqecdnRwNHkJg2EYWlJW+kp9Q8Pkki4sJGB0afriI1ZWViYno9Pr9dS8wvxN7Z1P1sZa29uYBcWFr2IYRpmtTxKJNJjGTTnh5Og48QCgC/NztxizmzkdCwuLllRuyunIcNackxE+CTaTji1JTxTt37v/F6tXrP6jtZX1jA8gU8AwjNTY1LjymyOHPr197+6BsbExawBsMgW2u5t73e5tuz7YtG7DB/Z2djXzMB7a2t6WcvTU8b9du3XjvaLiGucfUmjSSyfESstFTtkC/l61Wm1ymhQikTi4OHXR0Yl0x+2dHQG5RroUEFDCWFJ8wlk3V7cnulL40L1royOjrwGAycuJwaFBVkZ2xp5a0XfaWCCLXRAWHHrHnBTKXd1dYcL8vI1i6czamEjcRMoW8Lb19PaEznR+OjQvWkFcbNw1FEV1GIah+UUFazu7OiNNnRcAYIFMdlZIULBZedTMITY6uHvDuvX/2LNj9795uLkLYR4KdwwMDoRcunbpdyfOnPx9Z1eXz5Q+ESsrq4GVy1Z+s2/X6z/xpnk/MGfnejrDIyPM63du/PbbE0f/X3NrC1sslr909/dMvHRvsrS8bFlDY4NZDpV+Pr7C6Miou4wAL0wibSYI83Jf7eruCjGmrbu7e0ViXMIVRoDXE4UJi0nXpXKTzzjYO0iedN1MYBiGVFRVrpLWySZDfkKC/RXpqWknzNHGMAyzyCvI29La1sac6XxTszyooKhws16vn1ULIxAIQylJyaftbO26AQDp7OryyS/M32RM2+lYWlo2LUpbdPRZVpEGAAgJ9FPHx8bdePuNg+9EhEWcnI989xqNxj0nT/jOF4e+/Liypoqr1elQFos+uXsZFR6Z+e4bB38Ux4n7mkQizTnnm1ardSguK973xeGvPistL13yQ1hevlRCrLRc5JzF572u1piuhZFJpN605NSTMdHBXQDj4TXC/NwtxhizCQTCSHJC0hljc4x7071rE2LjL6AoanJoytDwMCNbwNtRU9swKRzYDFZhaHDoHQAwWRvr7ukOM+x8fs8oXCtuJPGFOZuNrYzuTfPOj46Iuo8gCKbT64l5hfnrO7s6jdoMmYY+iB2UwWayCp9HzqpAlrd+5bLUirf2Hfi3ZYuX/p+FhYXJTsXT0ev1FrL6urVfHzn0aUZ2xvaKiu9VWMK8PL2k+3bt+e26lWv+ZG01991SDMNQebN88TfHvv301r3bb5WWiuxf5uXlSyXECouL1jQ0NSTNfuWj+Hj7FnCiou8CAEhlLWhOrnBzd0+3UcZsuhetJCkh8dLjbGHTCWR5a9NT0046Ozmbtd1eXlmxWlZfN5mMMDjIT5WenHrSysrKnJ1KclFJ8SvNrS2BU4/Lm5uDikuL1xuTJ4tEIg2kJCWfsbe37wAApL29LSAnN2eHObYwK0urplRuymkqlTpnI/tciIkO6dn0yqt/3bN990/d3dyF8xHU3T/QH37+8sUPT5w7/UFnd5f3FOdY1MrSamjtyjVf7N/9+vt0L1rmfOyWDo8Ms67evP5fR08f/7CtvZ3xsi4vX5o3VVhc7Z7Jy96nVqtnTZU8HSKBOJSWnHoyOjKoBwCgpbUlMDc/d6sxWhiRSBziJnJPOTs5m+R46uXhKYuPib1ozk7lyOiIfyY/a3eNqGFyfiwGszg6IuqaOV/+3r7eoJxc4aYJbUwibSbmFuRt6B/on3GZOR1vmncBJzr6DoIgmF6vJwjzcjd093QbtQyfCgKIPpAdmBnIYucvhMyhYSEBiuQk7qWDB9768XhQNzrnfPdKldKbL+S/+/W33/xdIpNw9Hr9xD04Ub7t/jtvvP2jqPDIYwQCYWCu46k1ape8wvyDnx/68tPyqor0l9EN46UQYrK6VqSotHilvEVulkMlk8HMio6MugcAIJLIybwcwdZuI10KaJ5exXGc2Buz2cIeHZOGcRO5F8zRxgy2sdU1ItGk60JIsL8iPSX9hK2NbYMZ/ZELS4o2trS2sgHGa0Pa2tr2oSg6q2MuiUQaWJSaftRgC0PbO9oDCkuM282cjqWVZWNacupJCwuLBVN7kc2kY6uXp5Ue3P/W+0vTF/+VOj/LSxtJnXTjF4e//jyTl7VNqVJSweCGgSAI0L1o4n27Xv/NmhWr/2RjbTMfy0tSo7xx+aHj335858G9A6VlIvu59rmQeCmEWP/AgBtPwDcqrnE6FAqla1Fq+lFOVFA3AEBrWysrv6jgNb1eP6tBlEggDiYnJZ+aqWCFMXh6eMgSYuPMso2NjIz4ZvGyd1dW100u2QL8/EojwiJugHkZM4L5QsFWkbiJxGTQsPiYuOse7h5ls7Xz8/UThIeFZxj8wog5ucLXenp7jQrPmoYuPDT8diCLXbAQtLDpJMSFt2/ZtOVPO7Zs/6Wzk/Ocg7oxDEN6ens4Zy6e++PZS+d/1dvf5w5TdkTt7ey6N6x95Z97tu/6uYebe858FPAdGBgIuXj10n+fPHvqd3xBkd/Lsrx8Kd5EYUnR6ubW5hhz2gb4BeREhoc/BBhfRvGFgq19/X0MY9rSaLTi2OiY29O9842FzfTWpSQln3V1ca00p321qHqlWCKe1MaCAn01ackp5mbMIBUUF25qaGoMAwBwdnJqTopPvEggEEYf14ZMJnelclNOTuT4au9oDzA8AEzON29jbdOQyk0+Q6FQHjve8yYsJECRmpx69q39bx5kM9lXCQTCnIO6lSqldyYv6/2vv/3mI2mdNEqv1wMYtDISkaiJ48TefueNg+9GhIadJBLnIQW2Ru2ak5/77heHv/qkRlSbWPsSLC9feCFWWFTlwc8R7DYn0R6JROpNT0k7ERE27lDZ0tbKLiop2mCkMbt3UUraEWcnJ5ML5U7F08OzjpuQdMYce8vYmMIzk5+9q7qmfjJBoZ+vX2VkeOR1c7I09A/0s/lCwZZaUSMZAQSLi4m9TvOiFTzuel8f3/zIsIgMBEH0Op2OJBDmvNbb1xv4uOsfB4Ig2tDgkHsMf0bpQtTCpoKiKBbEDix4542DP05JSv6UTCY/NlW2seh0OttqUe2Wzw999XlOnnCDWqOhgEGQoSiK+fn4VR3Yc+AXyxcv/T8qlWry5s109Ho9WVZft+bro4c+E+QKNlVX15u89F9IvNBCTFbXiggL8jbKm+VGFW+dDjOAyQsPDc0CABCJm8jZAt723r4+o0pw+Xr75MdEc+4wArzmdNMxGTQsMT7hspurmxlLFAxqxbVLa8VTbGNBfsr0lLST9nbmxWiWlJVsaGhqDNNjGOLs5NycnMg9SyKSHtEASCRyeyo35aTNuBaGNLc0B+YXF27GMOyJYUwzYW1l3ZCanHKKTCYvtEKxM4EAAOLk5NS2/bVtH27dtOXXTo5Oc06BDYBBd0937Mlzp/5y4fKFX/T1909dXiL2dnY9r67f+NGurTt/5ubqljdPKbAjTl84++dMftbO2trGF1Yje6GFWE9vL40vFOwxM8VLx6LU9KNREYF9AABNzfLgvIK8LcYshUhE0mAqN/WUvZ39nFOrAAC4ubg2JcUnniMQCGOmth0dHaVn8LL2lFdKJndlGf7+ZTFRnMtgRlTAwOAgkyfgb9doNRQEQfScKM4tLy+vvGmXYSwGkxcZFpEBAKDRaiiC3JzXBvpNq7ptQBsWEno3wC+gDObBS/5ZYmlpObQkffHxA3v3vxfgF3B7PnKGjY6N+d3LfPDvh44f/nNDU2Oo3pCTDgCAQqYokhOSrry9/60fBQcGn0NR1OTvyyPjjY763Lhz6+d1DfWRL6ov2QsrxOrq25C8wvwNbe1t5jhUQiCLnRkVEfEQAEAslROzBbwdg4NDvsa09fHxyY2OjHwwVy1sAhaTrk8a18bMs43VVC+vqqmZLIHGZnlrDVEBdab2hWEYWlpRtq6pqSkUAMDB3r4jOZF7lkgkTmZVtbCwaEpLTj1lbW3dDwBIS0srq6ik+FU9pjdZC7O3s5Okp6Yfp1AoY8YuJWvFTYjhhdaKm1CRRP7Mbj4Wg6Y35AvDwOB1HxocInj7jbd+zE1I+pxCoZi1yTMVnU5nW1ldtePzQ19+lpufu06tUU9sMiGGCktlb+7d//Ml6Yv/RqVSTY7UmM7A4ACzqqY6DZsiMF8kXlgVsrunh5aTJ9yu0+lMTgpHoVC60lPSj4eFMEYAAJqamkJLykrXYWCcY2dqUsopezv7OYeITMXN1a0pMS7h/JXrV8J1RhThmIpSpfTMFmTvrKiU8sPDmCMAAHQaXRQTzbn8IPPhv5ta2HVwaJCZLeDtpNPpNRQyZSw6MuqeQJjzWqO8cTEAaBj+DGFocIhgIlNFTp5w88DggFGbIVNBEEQZERZx09/XrwLGl2mTQmyqYApkeWM1okaiSqWyVKqUVl3dXdSxsTFbhVJprdFoLTBMjx49ecFKj2FPeijPdIMae9N+T7iiCKJrbmmp9fL0lKIoiiEIgrm7uTfs3Lbj9zQvWs3te3feHxgcMCre9LEDYhja3tGefPzsSY/W9nbWiiXLvrWzte01zBlzcnRq27rxtT/TvWi112/ffL+7pzvehPczfSzCmHLMDhdizxBpXSt66+7tda1trZHmtA9iBz0MDgwSAgDUipsox0+f2DEwOBBgTNsAvwBeTDTn9nxpYRMwGTRMmFd6vrC4cIO8pdnkwrISqTStsqY6BQBuA4xnk73/UHCmuLRkY19/n0nGdgzDkNKKsvVJ8YkXgwKDBI4Ojm2p3JQzbe1tLARFdKnclLNWVlaDAIDIm+XBxaXFG8yxhdnZ2tWlJCWfI5FI6oljU4QXotfrCf0D/e5HTpzjnDp7mtPe2R7QPzDorlCMOWq0GkudTkfV6zEyAEbU6XQkwxyeJKymn3vcTTv9b4tN+alHAFG5uLjUvrJm/V9jOTG3Q4L8VBJZC2JlaTW0fMmyo57uHrJL16/8oknelG5MVagnMTo6GnD7/u1ftbW3sjeu2/A3uhdNjKIogKHCUio35YK7q3v9peuXfyGtk600JmXUdAgEgsrV2VUeGOgz5yiB58ELKcQ6Ozv9sgW813U6nclfECqV2paekno8Iow5CADQJG8KNdyEs2orZDK51+BTNi+2sOm4OLs0Jyclnzh78VykqUkEFUoFLVvA21lWIcmJDGcNAQB4072rOVHRlx9kPvw5hmEmBQKPjIz48YSC7QH+ASVkMlkRE825k1uQ+wqFYjE8kV1CrVZTM/lZu/sH+s3ZkVRHhkfc8vHxmUxFYxBgCAAgI6MjDrl5uRt5QsH29o72SK1Wa4c9WdN6lli1tbdxT5w54dXe0cYoLKk5AgC9AABEIlETER6R7erq2nz52pWfFZeVvKbRaJznMphWq3UoKS99vaOrM+DVdRv+HB0R9YBIJGoBACGgBF0gi1305utv/PzmnVsSYX7uXqVKaVJ9VWsr6+4AP//iuczxebJQvhRGI6trRXPyhZuNzbQ6nSBWYEZocCgPAEAkbqI8yMzYNzA4aFSGU4Z/AC88dG4FK57EuJNp7A0vT69Sc9qLJKKlVTVVqRP/Z7O8dYtS0084OTqZk78MqqqrVtfV13MAAGxtbXuXL1l2aNmiJcesrKwGAABplDeFlpaVvWKOcLGztatLTuSeJ5PISpim+fQP9LufPnfmd+cuXfiLvFm+SKPROCwgATbJ8MiI7407t/7r2+NH/l9zSwtrYjmGIAjm6eFZv2fn7g9eWbP+Q1tb2xoAmJOWg2EY0trWmnr01PGPrt2+8aPh4WEHMAT8IwiCuTq7NG/bvPVPWzZu/o2To2OJKX37+foJaV5ec64C9bxYcF+M2ejo7PTLK8jfYoxH/XQsLS1bli5acjgsJGAUAEBWXx9VXlWxCgBmXQpRKJSOVG7qyejIwDln43wSCXERrdyEpDMEAsHk0BuVSuX2MCtzb2m52H7imJeHpzQ+Ju68OTtnwyPDPnyhYJtKpbJEEEQXHRn9ICw0jI8giF6j0VAEQsGWoWHjNkOmgqKoKjoy6qqPj081GDQvwylEoVDYXrl+9We5BXlvqjXqR6qsLzS0Wq1NSVnJ/s+/+eJfRaXFy7VaLQkM78fG2mY8Bfau13/mTaNnIwiinqW7WRkaHmLduH3zt0dPH/+f1vY2pkFwIgCAUC0sRhenLTr95t4D7zMDGNdRFJ11PBKJNJAQG38hLJTxIri3zMgLJcSkshaCMD93U2dnp1FxjdMJDQq9y2ayCgEAamobLLP42TuHjbwJxz37I8wqzGEq8TFx17w8vUx6mk5Q11CXUlZRPlntPJDto0lJ4p4zM0YTKqoq1srq6zgAgBGJRDWBQNAAANLY1BhWVlm+BswwJjvYO4jSklNPk0nkqYIV0+v1xNyCvA25BXn7dDrdC+OAiWEY0tzSvPjI8aP/vHnn1sGRkRE7GNcuMSKRqOVERT94+8DBH3Mio0+QSCSTa2dOR6PVOBUUF775xaEvPymtKFus1WonUmADgUDQhQSFCN/e/9b73ISkf5HJ5CeO5+vtWxAaFMyf65yeJy+UEOscz/G1Xac3fUfSyspanp6SejI0JGAEAKC+sSGsrKJsrTHLFAqF0rkoNe14VAR7wIxpm4yzk1NrWnLqURKRZPJ4KpXKLVvA21lSWjtZ5cnL00sSGx1z2cyMGfRMXuZepVI54YeGqNVqKk8o2DY0NGTUMnwqCIIoOVHRV2leNDEYbnTDC9o72v3vZzx4S6VSmVyhaiEwNDzEunbz2u+OnTr+YduUQiEIgujpNJp43669v1mzfNX/s7ayNjkh5nQwDCM0ypuWHz5+5OPb9+++OTI6OqG1IgCAuLq4Nu3csuMPm9a/+hsHe4fqmfogkUgjSfEJZ21tbJ/q6uJp88IIMWldC4EvzNna2WWOFoZASGDQg0B2YB7A+I5kFp+3c3hk2KhK2IEsdkZEWESW6eOahyEA+4Y33bvInPayellyRXVl+sT/WUy6LjmRe97J0ckcL36oqa1dKpFJ4r/rvy66tKx0vTk7kg4ODhJuQtJFIpE44YiLBbK8Ma1WS8kW8LZ2dHaYFQO7UFBrNE55hfnvfHHoy0/KKytStVotgcWgYQAIZmtj271u9dpP92zf9UsvTy/efBTwHRwaDLxy8+rvTpw9+fu2jnZ/bFxyYgCAWFlaDq5YsuzwG3v3/8jPx/ceiqLfi/Gle9HyOJGc2/Ph/f88eWGEWGtrG1M4nuPLZFuYlaVlS3pK2omQID8FAIBYIo4rH18KzXoTUqnUlvTktMndzGdFLCekKzmJe5JEMl0b02g0rll83q6pKVc8PTxk3ISkkwSUYHLGjNGxUTovR7BdoVTYqFQqS56At2N4ZNjb1H5QFB2JieJcNmhhAAYBJpLIkSZ5U0hhcZFZweMLDQzD0IamxpWHj3378d0H9w6UlottWUwaBgBAJpGV8TFxNw/ue/O9iNDws0Qicc4B72q12iW3IO+dLw9//XFlddVEhSUAgzNuWHAo/+39b/04Pibuc7JhOUskEIeSE7mn7e3tuuAFi5SYzgshxCTSZiI/V7C1p7fH5LAWBEF0keER19ksdgEAQFVNnU1GdubrwyPDfsa0ZzGYvNCQ0OdiM4iN5tz2pnk/NgD7SdQ11KUUlhStnvh/INtHk5zEPefqambGjNrqZVKZNEFWXxdbVVO9HIx4AEzH2cm5Ji059axBC8MmPPTVarUlL4e/tX+g3yhfvReF/oH+wEvXLv/65NlTH/BzinwnJAWKojo/H9/KA3v2/fuKJcv+bE7t0Ono9XpSfWP9qkPHD39yP/PB3jHF2OTyH0EQ8PTwlO3dsfu3G9a+8oGdrV25n6/fg5gozm0EkBdagAG8IH5ibe1tjPzC/M3maGE21jZNi1LTj4cG+48CAEhk0pjKmqoVxngnW1AobekpacfDQxnPJUmfvZ19Vwo3+aS8WR6r0WpMshOp1WqXbAFvd2Fx9f1YTkg3AICLs0tTfEzchWu3rocZk7V2Kooxhdf9jIfvEIlE1cjoiJcpbQEAEAQZiYuJu+zh7iELZHlPLmtEEjnS3d3tMjQ84uDvF/DAcHji/JSdS2zqLuZ0sMf8Pn0Wjzv3pO8CMsPv2Cw/J37HAADr7OryfpCVuW31shXfOtg7TEZ62NvZd25ct+FvNC9a7dWb1/+9s6szbq5e8339/WEXrl76U0tba9D6Ves+dXF2bkYQBAMAJCoycLC6pv4bL0+aGEUR/UTUiaFwyayIJHJkIWYZWfBCTFbXip4+f3ZrT2+vOVoYFh4adpsZwCgGAKipbbD64tBXu8fGxma9CREEwUKCQu6FBoc8s7Jh02EyaFhhcfVtgTBnh6xetsLU9g1Njcml5aUrAOCEWNqMYhimT4iLv5JXmLeto7MzatYOpoABhlTXVq8EAMxUx1kAABdnl9rEuIQrBALhETuQg6Nj54G9+34L4zfw94z9340PCHx3g5t+IyEIhiCI3nBDP3LWlJ6MuGbqGIjhHz2FTFayWPTJcxJJM0IhUxTc+KRL7q7uDReuXvq1SCJaaU619KmoVCoXvlDwk/aODubWVzf/kRHALEIRBDMEeGuiIyIzMAxDZ7KFVVTKLFtaW1iNTY1B/YMDziiKap2dnNv8fH1rNVptk0giVwOMh4LNZY7zyYIXYs0tzeyC4oJNpsb/AQDY2tjWLUpNPx7I9lEDAIik4rjq2prlxrS1tLRsXJy26Gh4KPO5FqyI5YR0Hzp6+lt5i5yjVqtN8vzW6XTW2Tn8nYUl1XcxDOsDAMzVxbUpIS7hzLWbNwL1etMiHsx1eyAQCIPchKQzHu7uMxamJRIIKmsrq6kZNyaN05MHxneR53zjoCiqYzPpmETW8tSs2eOG/O+QyFoQFoOGPS5LBJvtrQeA4rz8ip/cunf7HV4Ob59CqfQEM2MhAQD0ej1RWidd/82xb523b976O0Pet4nT2IR2BobPVCyWIw2NDaGHjh3e09HZGeDk6NBmZ+fQien10NDYEPIg8+EORkBA+bLFS0+7ubrJRRK5fqEIsgUtxMQSOenEmVN7u3t6zEq0FxPNucQICCgFAKisltl8efjrPaNjo8YshbBgdtDDIHZgvsmTfgpERUTd5+XwhSKJeL2pbZvkTcnFJcWr01LSTiAIghAIBG1SfOKlwuKiDa1trWbV5zQVN1e38sT4xMszaWEGwz6AwaN9+o0x3xkqDMs1bLqgeZpMjDVVC5vp/wnx4W2VlbL/9fLwlFy/c+OX3T3GFS1+HBiGQXtHe9KZC2f/4OTg2OZN966dMi4mkTQjLBYdE4vlSGV1VdKFqxd/6uvjK35j7/4PPNzdG0JDAsYAAMorpNRGeVPInQd39x45cfSDHVu2/5833Vv8xMGfIQtaiDU1NwcXlhRtNEcLc3RwkKQlp54OZI1rYdW1Ndyq6uqVU8pkPRZra+vGJYsWHw0J9l8QXszRkYF9h4+dOVHf2JBkqjam0WisM/nZe8NCwjKcnJxaAQBcXVwbuQlJpy9evRQ216XLbBAIhL7UpOTTLs7O3zNeiyRypLOr06+5pSWwsKRoYpMAO37mEsCUZICFJQYvEwwQg11sOjMde+If+cSZS9g85Kyf7Ys0/Twy/h4Mv898LVZRXYlYWlqOREdE3c/O4dOVSuWcoxbaOzticwvzX/Hy9JIQCITJ8KcJIdrc2sK6cPXie5zI6Iep3NTLjfLG0K7uLtrJM5f1RCJR3dbe2u9Dp9fu3bnnDxevXnrv3KXz7+3fs+9DkUTeuRC0sQUrxKSyFsLRU8Znl5gKiqLqOE7cBX9fv0oAgKqaOutPv/zXboVS4T5bWwRB9JFhETfZDNaCCoiNDI984O/LyxVJxOtMbStvbo4vKi1es3zJsq8Rg20ojhN7Q5ifu7WltYX7NOY7Ac2LVhQbE3sTRVEdACBTdiSpl69deS+vMH8HhmG28N1OOTLDC2AOS6s58Lgb9EkbCRg8xq5nYCYBhsG4Jqqfdn5eHjAYhhHbOzv8dTodaaoQAwCorW0kHjtzcpOrq1vzskVLTw4MDrh+c/Twf1Op1D5HB8d2jVZDGhgY8AwLCeVtefW1jzeue+VfXx3+5r8FwpxVa1etOSqSyJ+7fWzBulg0yptCDMVbTd7Kd3VxrUhPSTs1Ucy2uqaGK5ZI0o1pa29nL1m6aMnhYINP2UIhOjKwPy059TiFTDE5p7ter7PMyRNu7evv95g45uTkZIjRJD61nVcymdy+KCXtmJOjUxtMsb+IJHJEVifjVNVUr8UwzBUALACAbHiRYPzhSoDx7+eTdiWfNjMJVMQwr4kXYdqLCOPvgQwAlBle5GkvCoy/fysAsIFxwTXxmi90tjY2vYYHyffo7u2h1TfWRy1OSbsYGckeBgBAUVSbyk25/G/vvv+Tn/3op+8vSkk7U1xasrqlrZWRFB/ZmRifcLu6piphdHRkQcS2LkghJpbISdkC/o7+gX6TE+0RCITR9OTUY16enjIAgMrqOttMfvaeMcXYrOlJEARRJ8bFn/X385+HnOnzT3Rk9D0Wk5llTtvWttbYopKiNXpMj8B4hlBdLCf2hqe7h1kZM4wAC/AL4MdwYu5O7AhOPLEVCoVNJi9r1/DIsMl/XxzTIRKJwwy/gJLgYL9HAsLbO9p9KWSyguZFm4jmwABASyKSFBERLAUnOmjY0dGxCwMMwzA9KpLIkQA//xqFUmnb29fnBjD/dktTWZBCrL6xIbygqOBVDMNMXu76+/rxkpO4F5gMmq6uvg2prq1JEolFS41p6+nuUbIoNf04m0lfkMnhIsNZg+kp6ccsKBYdprbVarVWObnCbX19fZMbG85OTi1JCYlniUTivEcjWFItm5YvWXbIxtpmIgB5UgsTSyVxVePuGjjPAFcX16pAFrtgpt1RhUJpRaFQxshksmLiPIZhaGV1VfKf/vrJwd/9z//9250H93bEcWJv0r3oUhgPZxoik8nDCoXS6nkvJQEWoBCTSJuJGbys3YNDgybbwqhUauvKZSs/j+WEtgMAjI6O2j3IfPCGQqlwna0tmUzuX7Z46Zce7h4mV9B+loQFh/CYDKZZEQQtrS3xhcWFayc2NxAE0SfExl+je9EK53OOCIKoOFHRl4ODgiZ87Ca/6Eql0pon4G0bGxszOWwJx3QQBFFEhoXfd3Ya31iZviOKoIher8dQDMOQ785hmEKpsB4Y7Hdt7+zwGx4ednJ2cmqnUChjAABanY6o0+sJKOHR5enzYMEJMVlDfXh5ZfkqMHFuKIIqE2Ljz0ZFRE6myymrLF8klcnSjGiOhQWHXk9KSLpkbiHcZ0VEOGsoPTn1uIWF6dqYTq+j8oU527t7ur3B4Ifl4ODQnpyUfJpEJPbP1xw93NyLVixb8bUFxeJ71XhEEjkqkojjRRLxkvkaC+fJ2NnZyeM4cdcDA3100wUYAICzo2P72Nio3dDwsOPEMQRB0ZgoTtbe7bv/90dvvP0rbkLSTb4wZ31ff58HAGA9vb2eOp2ObG9n1/u8l5IAC0yIicRNpCxe1q6hIdMT7fn6+PDXrlrzWUiQn8G3RWKfxeftUqqUs7okuDq7lL6ydv3fI8Ker2OrsYSFhmYzA5g8c9p2dHZw8grzX9Hr9eOJ2hEE40RG36XR6GZlzJiOBcWiddWKlZ/SPL2kYDDIT7WF8XL420fHRn3mYyycWdGEh4TdoX8XcP8IHm4eTRSKxUhldVXSlMMEFEV1wcF+OiqVqmQzWOUqlcpOqVRa6nQ6tLS8NMnd1a3J3t6+G+D5e+8vKCFW39gQVlJeus7UsBYXZ5eyLa++9sfkxOhJj/CK6so0WZ0s9UntAABsbGxkmzdu+nDCHeNFICKMNbQkbdG3VCrV5OrjOp2Ompuf99oUbQzs7e07kxOSzpHmaBsjEom96alpX8dx4m4a/LAm3QzGnVpF8bWi2mXw/HYbf1BYW1u3JsYlXAgNDXjsTruVldVAYlzCrWxB9uZ79/lBFAplLIgdKHBxdm6TSJoJAECwt7PrYTGYuQgAVlldya0V1yYkJ3FvR4QyTc6I8jRYMEJMJG4iZmRn7h4eHjblKa11cXYp3vHatv8Mm5JporxSapvFy96rUqueqIXZ2NhIXl234Y8JsfE3FvoycjqhISG8IHaQWZlmOzo7IguKCtcZtDEMQRB9dFT0HTqNblbGDAAAIpHYnRSfcHTtqjWfWVhYjMJ4lorJ0JSSMpFdRnbmrjHFmFE53HDmBoIg2rDg0DtMf8YTMwSz2d5YPCf2vq+Pb/mZi+f+bXBw0OWt19/4w46tGx6wWHQdi0XXetO9aw/s2f+/3b09npevXXknJjrmYRA7qEgkkaPPWwsDWEDOrmKpJLasonwVjPvYPBEEQZQWFhadbCY7e/2qNZ+yWeyiqSXUikqKV0nrZQmPaa4hk8kDPt4++WtXrv44Mjwii83ynnNyumdNWAhj7OzFG8dEEtFiYwLap6LX6y1zC3Jfi+XE3HB3c28EAHCwd+hIT0k/1tLWGqlWq12M7AojoIQRR0dHaVpy6pFFqemnrK2t+6Z/sWvFTYTCkqIUiUyaYso8ccwDQRCNl6dX/ooly78MC2PMWiU8MpI9VFhU9dm1WzcOHD559D8iQsNzrl6/X2BtbTMAgGEV1ZVuZZXlidI6WUQcJ+b+kvQl50kkknohCDCABSLExBI58dT5M0tIJOKYg719NYxriBMFF/QEAlFBIBCUKIpqbaxterzp9OqI0PCHgezAgvBQxvDUviqrZDZfHTmUYkm17LKkUgcAEAKRSFCRSORhO1vbTnc397ogdmBOSFCwMCY6ZF4L4D5r2ExWQXho+FWRRLQEsMn8XlOXahPLuYml3QR6pVJJqaisTHN1cZUbCsDqIyMi7heVFt+SN8tj4LsA7KnOphiCgJ5EIo1SqZaDzk5Ozf6+/mXhoeGZXp6ekpAgv6lB3JOoVCrLisqKVAuKxZAFxWIiVfKE0+hM850ptc3jmClVztTfH3d+NjBAjPK4/+76J/+ciSfNfaaogKk/p74/BACASCCqbKytO329fSrSktNOGYoSz4ohhrKvolL2SXVtdUJ+UcGys5fOvWvYxMZQFNXRvGh121/b9g9mAKOcSCTqFooAA1hAtonc/DKaWq22gBm+fBQKZZREJKkBQfQkIlFDpVJHHrf8k0ibka6ebh/deNUZAATBKGTyGIlEUpOIJJWFhcUoi2lc/qQXgfzCSrfhkWFHeHzR2Jm+bBgAYFQqdcTRwbHD4IyKYRgG/f19nmMKhc20dpN9Iwiip1pQR4gkkopCJivIZPJYENvniV/oqtp6Uk9PD12r1U5kwXjS927Gvp5HdWoUQfUIikwPBTIPDEOMCNs1tpjvjA3JFIqCSrEYsaBaDIcE+5tdWamySkYZGxuzHR0bs0UQwKwtrQcsrSyHQoL9F+SKZcEIMZxny5RCtd/zpsfBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcGZjf8Pv84Vrn3qtXMAAAAASUVORK5CYII=";
+
+function showLogin() {
+  const app = document.getElementById("app");
+  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const LOGO = isDark ? LOGO_DARK : LOGO_LIGHT;
+
+  function renderLoginScreen(step, selectedUser, errorMsg) {
+    if (step === "select") {
+      app.innerHTML = `
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:var(--bg);">
+  <div style="width:100%;max-width:340px;">
+    <div style="text-align:center;margin-bottom:2rem;">
+      <img src="${LOGO}" alt="NS" style="max-width:180px;max-height:90px;margin:0 auto 1rem;object-fit:contain;" />
+      <p style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;">Assistência Técnica · RICOMA</p>
+    </div>
+    <p style="font-size:16px;font-weight:600;margin-bottom:4px;">Quem é você?</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1.25rem;">Selecione seu perfil para continuar.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${allUsers.map(u => `
+      <button class="user-select-btn" data-uid="${u.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--radius-lg);background:var(--bg);border:0.5px solid var(--border);cursor:pointer;text-align:left;width:100%;transition:border-color 0.15s;">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--info-bg);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--info);flex-shrink:0;">${u.name[0]}</div>
+        <div>
+          <p style="font-weight:600;font-size:15px;">${u.name}</p>
+          <p style="font-size:12px;color:var(--text3);margin-top:1px;">${u.role === 'admin' ? '⚙️ Administrador' : '🔧 Mecânico'}</p>
+        </div>
+        <span style="margin-left:auto;font-size:18px;color:var(--text3);">›</span>
+      </button>`).join("")}
+    </div>
+  </div>
+</div>`;
+      document.querySelectorAll(".user-select-btn").forEach(btn => {
+        btn.onclick = () => {
+          const user = allUsers.find(u => u.id === btn.dataset.uid);
+          if (user) renderLoginScreen("pin", user, "");
+        };
+      });
+
+    } else if (step === "pin") {
+      let pinVal = "";
+      app.innerHTML = `
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:var(--bg);">
+  <div style="width:100%;max-width:320px;">
+    <button id="back-to-select" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;margin-bottom:1.5rem;padding:0;">← Voltar</button>
+    <div style="text-align:center;margin-bottom:2rem;">
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--info-bg);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--info);margin:0 auto 12px;">${selectedUser.name[0]}</div>
+      <p style="font-size:18px;font-weight:700;">Olá, ${selectedUser.name}!</p>
+      <p style="font-size:13px;color:var(--text2);margin-top:4px;">Digite seu PIN de ${selectedUser.pin?.length||4} dígitos</p>
+    </div>
+    ${errorMsg ? `<p style="color:var(--danger);font-size:13px;text-align:center;margin-bottom:12px;font-weight:500;">⚠️ ${errorMsg}</p>` : ""}
+    <div id="pin-dots" style="display:flex;justify-content:center;gap:12px;margin-bottom:2rem;">
+      ${Array(selectedUser.pin?.length||4).fill(0).map((_,i) => `<div id="dot-${i}" style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:background 0.15s;"></div>`).join("")}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:260px;margin:0 auto;">
+      ${[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map(k => k === "" ? "<div></div>" : `
+      <button class="pin-key" data-k="${k}" style="padding:18px;border-radius:var(--radius-lg);background:var(--bg2);border:0.5px solid var(--border);font-size:22px;font-weight:600;cursor:pointer;transition:transform 0.1s,background 0.1s;">${k}</button>`).join("")}
+    </div>
+  </div>
+</div>`;
+
+      const maxLen = selectedUser.pin?.length || 4;
+
+      function updateDots() {
+        for (let i=0; i<maxLen; i++) {
+          const dot = document.getElementById("dot-"+i);
+          if (dot) dot.style.background = i < pinVal.length ? "var(--info)" : "transparent";
+        }
+      }
+
+      function tryLogin() {
+        if (pinVal === selectedUser.pin) {
+          setAuthenticated(selectedUser);
+          initFirebase();
+        } else {
+          pinVal = "";
+          updateDots();
+          renderLoginScreen("pin", selectedUser, "PIN incorreto. Tente novamente.");
+        }
+      }
+
+      document.querySelectorAll(".pin-key").forEach(btn => {
+        btn.onclick = () => {
+          const k = btn.dataset.k;
+          if (k === "⌫") { pinVal = pinVal.slice(0,-1); }
+          else if (pinVal.length < maxLen) { pinVal += k; }
+          updateDots();
+          if (pinVal.length === maxLen) setTimeout(tryLogin, 150);
+        };
+      });
+
+      document.getElementById("back-to-select").onclick = () => renderLoginScreen("select", null, "");
+    }
+  }
+
+  renderLoginScreen("select", null, "");
+}
+
+// ── DADOS ────────────────────────────────────────────────
+const MECHANICS = ["Vitor","Luiz","Iodenir"];
+const MACHINE_MODELS = [
+  "CHT1506",
+  "EM-10S",
+  "MT1502-10S",
+  "MT1504-10S",
+  "PV1501-10S",
+];
+const CHECKLISTS = {
+  envio: { label: "Preparação para Envio", items: [
+    { id:"placas",    label:"Conexões e cabos das placas",     detail:"Verificar todas as conexões e cabos das placas eletrônicas" },
+    { id:"parafusos", label:"Aperto dos parafusos",            detail:"Verificar aperto de todos os parafusos da máquina" },
+    { id:"faca",      label:"Posição da faca",                 detail:"Verificar se a posição da faca está correta conforme especificação" },
+    { id:"estrutura", label:"Danos na estrutura",              detail:"Verificar danos, marcas de transporte e locais com tinta solta" },
+    { id:"agulha",    label:"Altura da barra de agulha",       detail:"Verificar e ajustar a altura da barra de agulha conforme spec RICOMA" },
+    { id:"lancadeira",label:"Tempo da lançadeira",             detail:"Verificar e ajustar o tempo da lançadeira" },
+    { id:"lubrificacao",label:"Lubrificação do excêntrico",   detail:"Lubrificar o excêntrico com graxa de rolamento" },
+    { id:"tensao",    label:"Tensão das linhas superiores",    detail:"Regular a tensão de todas as linhas superiores (padrão: 130~150g)" },
+    { id:"acessorios",label:"Caixa de acessórios e pendrive", detail:"Conferir conteúdo da caixa de acessórios e do pendrive da máquina" },
+    { id:"pendrive",  label:"Manual e partbook no pendrive",   detail:"Adicionar manual em português e partbook da máquina no pendrive" },
+    { id:"senha",     label:"Adicional de senha",              detail:"Verificar e registrar o adicional de senha da máquina" },
+  ]},
+  instalacao: { label: "Checklist de Instalação", items: [
+    { id:"nivel",        label:"Nivelamento da máquina",          detail:"Verificar com nível se a máquina está perfeitamente nivelada. Ajustar os pés reguláveis conforme necessário." },
+    { id:"piso",         label:"Estabilidade do piso",            detail:"Avaliar se o piso suporta o peso e vibração. Ideal: concreto firme ou cerâmica sobre laje. Anotar tipo do piso nas observações." },
+    { id:"espaco",       label:"Espaço e ventilação",             detail:"Espaço mínimo de 60cm em todos os lados. Ambiente ventilado, sem excesso de poeira ou umidade." },
+    { id:"tensao_rede",  label:"Tensão da rede elétrica",         detail:"Medir tensão da tomada com multímetro. Confirmar se é 110V ou 220V e se corresponde à configuração da máquina. Anotar o valor medido." },
+    { id:"nobreak",      label:"No-break ou estabilizador",       detail:"Recomendação RICOMA: No-break mínimo 1000VA para 1 cabeça, 2000VA para múltiplas cabeças. Estabilizador: mínimo 1500VA. Fotografar o equipamento usado." },
+    { id:"aterramento",  label:"Aterramento elétrico",            detail:"Verificar se a instalação possui aterramento adequado (fio terra). Essencial para segurança e eletrônica da máquina." },
+    { id:"iluminacao",   label:"Iluminação do ambiente",          detail:"Verificar se há iluminação adequada para operação. Luz insuficiente aumenta erros do operador e compromete qualidade." },
+    { id:"conexao_pc",   label:"Conexão computador/USB",          detail:"Testar conexão entre máquina e computador ou pendrive. Enviar arquivo de bordado de teste e confirmar comunicação." },
+    { id:"linha_agulha", label:"Enfileiramento completo",         detail:"Realizar o enfileiramento completo com o cliente presente. Mostrar sequência correta de linha superior e bobina inferior." },
+    { id:"teste_bordar", label:"Teste de bordado",                detail:"Executar bordado de teste completo. Verificar qualidade das linhas, tensão, corte e resultado final." },
+    { id:"treinamento",  label:"Treinamento do operador",         detail:"Orientar sobre: ligar/desligar, trocar agulha, reabastecer linha, usar pendrive, ajustes de tensão e limpeza diária." },
+    { id:"manual",       label:"Entrega de manuais e acessórios", detail:"Confirmar entrega de manual em português, partbook, kit de acessórios, agulhas reservas e demais itens da caixa." },
+    { id:"limpeza_pos",  label:"Limpeza pós-instalação",          detail:"Remover embalagens, isopor e materiais de proteção. Deixar o ambiente organizado após a instalação." },
+  ]}
+};
+
+// ── ESTADO ───────────────────────────────────────────────
+let S = {
+  screen:"home", records:[], selected:null,
+  form:nf(), step:0, expanded:{},
+  loading:true, saving:false, filter:"todos", search:"", homeSearch:"", chamadoSearch:"", replyText:"", replyPhotos:[], replyIsFactory:false, replyMechanic:"", selectedChamado:null, chamadoForm:{}, db:null
+};
+
+function nf() {
+  const defaultMech = currentUser ? currentUser.name : "";
+  return { mechanic:defaultMech, type:"envio", model:"", serial:"",
+           items:{}, notes:{}, photos:{}, observation:"",
+           compNote:"", compPhotos:[], clientSignature:null, clientName:"",
+           linkedProtocol:"", linkedRecordId:"" };
+}
+
+// ── FIREBASE ─────────────────────────────────────────────
+async function initFirebase() {
+  try {
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
+  } catch(e) {
+    // Already initialized - ignore
+  }
+  try {
+    S.db = firebase.firestore();
+  } catch(e) {
+    document.getElementById("app").innerHTML =
+      '<div style="padding:2rem;color:#a32d2d;"><p style="font-weight:600;margin-bottom:8px;">⚠️ Erro ao conectar ao Firebase</p><p style="font-size:13px;">Verifique sua conexão com a internet e tente novamente.</p></div>';
+    return;
+  }
+  // Load users (never blocks rendering)
+  try { await loadUsers(S.db); } catch(e) { allUsers = [...DEFAULT_USERS]; }
+  // Render immediately
+  S.loading = true;
+  render();
+  // Load data in background
+  try { loadRecords(); } catch(e) {}
+  try { loadChamados(); } catch(e) {}
+  try { loadKbEntries(); } catch(e) {}
+}
+
+async function loadRecords() {
+  S.loading = true; render();
+  try {
+    const snap = await S.db.collection("checklists").orderBy("date","desc").get();
+    S.records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { S.records = []; }
+  S.loading = false; render();
+}
+
+async function getDeviceInfo() {
+  const ua = navigator.userAgent;
+  const sw = screen.width, sh = screen.height;
+  const info = {
+    userAgent: ua,
+    screenRes: sw + "x" + sh,
+    timestamp: new Date().toISOString(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
+
+  // ── BROWSER ──
+  if (/EdgA|EdgiOS/.test(ua)) info.browser = "Edge";
+  else if (/OPR|OPiOS/.test(ua)) info.browser = "Opera";
+  else if (/CriOS/.test(ua)) info.browser = "Chrome (iOS)";
+  else if (/Chrome/.test(ua) && !/Chromium/.test(ua)) info.browser = "Chrome";
+  else if (/Firefox|FxiOS/.test(ua)) info.browser = "Firefox";
+  else if (/Safari/.test(ua)) info.browser = "Safari";
+  else info.browser = "Outro";
+
+  // ── ANDROID: extract exact model ──
+  if (/Android/.test(ua)) {
+    const modelMatch = ua.match(/\(Linux;[^)]*;\s*([^)]+)\)/);
+    let model = "Android";
+    if (modelMatch) {
+      // UA format: "...Build/..." - model is before Build
+      const raw = modelMatch[1];
+      const buildIdx = raw.indexOf(" Build");
+      model = buildIdx > 0 ? raw.substring(0, buildIdx).trim() : raw.split(";").pop().trim();
+      // Clean up common prefixes
+      model = model.replace(/^Android\s+[\d.]+;\s*/i, "").trim();
+    }
+    // Brand detection
+    const brands = ["Samsung","Motorola","Xiaomi","Redmi","POCO","LG","Sony","Nokia","Huawei","Honor","Realme","OnePlus","Vivo","Oppo","Asus","Lenovo","TCL","Alcatel","ZTE"];
+    let brand = "";
+    for (const b of brands) {
+      if (model.toUpperCase().includes(b.toUpperCase()) || ua.includes(b)) { brand = b; break; }
+    }
+    info.device = (brand ? brand + " " : "") + model;
+    info.os = "Android " + (ua.match(/Android\s+([\d.]+)/)?.[1] || "");
+  }
+
+  // ── iPHONE: identify model by screen resolution ──
+  else if (/iPhone/.test(ua)) {
+    const pxW = sw * (window.devicePixelRatio||1);
+    const pxH = sh * (window.devicePixelRatio||1);
+    const larger = Math.max(pxW, pxH);
+    const smaller = Math.min(pxW, pxH);
+    // Map physical pixels to iPhone model
+    const iPhoneModels = {
+      "2796x1290": "iPhone 14 Pro Max / 15 Pro Max",
+      "2556x1179": "iPhone 14 Pro / 15 Pro",
+      "2532x1170": "iPhone 12 / 13 / 14",
+      "2778x1284": "iPhone 12 Pro Max / 13 Pro Max",
+      "2436x1125": "iPhone X / XS / 11 Pro",
+      "2688x1242": "iPhone XS Max / 11 Pro Max",
+      "1792x828":  "iPhone XR / 11",
+      "2340x1080": "iPhone 12 mini / 13 mini",
+      "2208x1242": "iPhone 6s+ / 7+ / 8+",
+      "1334x750":  "iPhone 6 / 6s / 7 / 8 / SE2",
+      "2176x1080": "iPhone SE (3a geração)",
+      "1136x640":  "iPhone SE (1a geração)",
+    };
+    const key = larger + "x" + smaller;
+    info.device = "iPhone — " + (iPhoneModels[key] || "modelo " + key + "px");
+    info.os = "iOS " + (ua.match(/OS\s+([\d_]+)/)?.[1]?.replace(/_/g,".") || "");
+  }
+
+  // ── iPad ──
+  else if (/iPad/.test(ua) || (/Mac/.test(ua) && navigator.maxTouchPoints > 1)) {
+    info.device = "iPad";
+    info.os = "iPadOS";
+  }
+
+  // ── DESKTOP ──
+  else if (/Windows NT/.test(ua)) {
+    const ver = ua.match(/Windows NT ([\d.]+)/)?.[1];
+    const winMap = {"10.0":"10/11","6.3":"8.1","6.2":"8","6.1":"7"};
+    info.device = "PC Windows " + (winMap[ver] || ver || "");
+    info.os = "Windows";
+  }
+  else if (/Macintosh/.test(ua)) {
+    info.device = "Mac";
+    info.os = "macOS " + (ua.match(/Mac OS X ([\d_]+)/)?.[1]?.replace(/_/g,".") || "");
+  }
+  else {
+    info.device = "Dispositivo desconhecido";
+    info.os = "";
+  }
+
+  // ── GPS ──
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {timeout: 6000})
+    );
+    info.gps = {
+      lat: pos.coords.latitude.toFixed(6),
+      lng: pos.coords.longitude.toFixed(6),
+      accuracy: Math.round(pos.coords.accuracy) + "m"
+    };
+  } catch(e) {
+    info.gps = null;
+  }
+
+  return info;
+}
+
+async function saveRecord(rec) {
+  S.saving = true; render();
+  try {
+    const deviceInfo = await getDeviceInfo();
+    rec.deviceInfo = deviceInfo;
+    await S.db.collection("checklists").doc(rec.id).set(rec);
+    await loadRecords();
+    S.screen="records"; S.form=nf(); S.step=0; S.saving=false; render();
+  } catch(e) {
+    S.saving=false;
+    alert("Erro ao salvar. Verifique sua conexão e tente novamente.");
+    render();
+  }
+}
+
+// ── CHAMADOS ─────────────────────────────────────────────
+let chamados = [];
+
+async function loadChamados() {
+  try {
+    const snap = await S.db.collection("chamados").orderBy("date","desc").get();
+    chamados = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { chamados = []; }
+}
+
+async function saveChamado(ch) {
+  await S.db.collection("chamados").doc(ch.id).set(ch);
+  await loadChamados();
+}
+
+async function openNewChamado(data) {
+  S.saving = true; render();
+  try {
+    // Find linked records for this serial
+  const linkedPrep = data.serial ? S.records.find(r => r.type==="envio" && r.serial && r.serial.trim().toLowerCase()===data.serial.trim().toLowerCase()) : null;
+  const linkedInstal = data.serial ? S.records.find(r => r.type==="instalacao" && r.serial && r.serial.trim().toLowerCase()===data.serial.trim().toLowerCase()) : null;
+  const linkedProtocol = linkedInstal?.protocol || linkedPrep?.protocol || null;
+
+  const ch = {
+      id: "ch" + Date.now(),
+      date: new Date().toISOString(),
+      status: "aberto",
+      model: data.model,
+      serial: data.serial,
+      mechanic: data.mechanic,
+      description: data.description,
+      photos: data.photos || [],
+      replies: [],
+      linkedPrepId: linkedPrep?.id || null,
+      linkedInstalId: linkedInstal?.id || null,
+      linkedProtocol: linkedProtocol,
+    };
+    await saveChamado(ch);
+    S.selectedChamado = chamados.find(c => c.id === ch.id);
+    S.screen = "chamado_detail";
+    S.saving = false;
+    render();
+  } catch(e) { S.saving = false; alert("Erro ao abrir chamado."); render(); }
+}
+
+async function addReply(chamadoId, reply) {
+  const ch = chamados.find(c => c.id === chamadoId);
+  if (!ch) return;
+  ch.replies = ch.replies || [];
+  ch.replies.push(reply);
+  // Auto status logic
+  if (ch.status === "aberto" && reply.isFactory) ch.status = "andamento";
+  if (ch.status === "resolvido" && !reply.reopen) {
+    // keep resolved
+  } else if (reply.reopen) {
+    ch.status = "aberto";
+  }
+  await saveChamado(ch);
+  S.selectedChamado = chamados.find(c => c.id === ch.id);
+  render();
+}
+
+async function setChamadoStatus(chamadoId, status) {
+  const ch = chamados.find(c => c.id === chamadoId);
+  if (!ch) return;
+  ch.status = status;
+  await saveChamado(ch);
+  S.selectedChamado = chamados.find(c => c.id === ch.id);
+  render();
+}
+
+function statusStyle(st) {
+  if (st === "aberto")    return { bg:"var(--danger-bg)",    text:"var(--danger)",    label:"● ABERTO" };
+  if (st === "andamento") return { bg:"var(--warning-bg)",   text:"var(--warning)",   label:"● EM ANDAMENTO" };
+  if (st === "resolvido") return { bg:"var(--success-bg)",   text:"var(--success)",   label:"✓ RESOLVIDO" };
+  return { bg:"var(--bg2)", text:"var(--text2)", label:st };
+}
+
+// ── SCREENS ──────────────────────────────────────────────
+function rChamados(app) {
+  const q = (S.chamadoSearch||"").toLowerCase().trim();
+  const filtered = q ? chamados.filter(ch =>
+    (ch.model||"").toLowerCase().includes(q) ||
+    (ch.serial||"").toLowerCase().includes(q) ||
+    (ch.mechanic||"").toLowerCase().includes(q) ||
+    (ch.description||"").toLowerCase().includes(q) ||
+    (ch.replies||[]).some(r =>
+      (r.text||"").toLowerCase().includes(q) ||
+      (r.mechanic||"").toLowerCase().includes(q)
+    )
+  ) : chamados;
+
+  let html = '';
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;">';
+  html += '<button id="btn-back-chamados" style="padding:7px 9px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;font-size:18px;flex-shrink:0;">←</button>';
+  html += '<div><p style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:2px;">RICOMA · Assistência Técnica</p>';
+  html += '<h1 style="font-size:20px;font-weight:700;">Histórico de Problemas</h1></div>';
+  html += '</div>';
+
+  // Search bar
+  html += '<div style="position:relative;margin-bottom:12px;">';
+  html += '<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>';
+  html += '<input id="chamado-search" placeholder="Buscar por modelo, série, técnico, descrição..." style="width:100%;padding:10px 36px 10px 36px;border-radius:var(--radius-lg);font-size:14px;" />';
+  html += '<button id="chamado-search-clear" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;color:var(--text3);padding:4px;cursor:pointer;display:none;">✕</button>';
+  html += '</div>';
+
+  // Stats row
+  const total = chamados.length;
+  const abertos = chamados.filter(c=>c.status==="aberto").length;
+  const andamento = chamados.filter(c=>c.status==="andamento").length;
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;">';
+  html += '<div style="flex-shrink:0;background:var(--bg2);border-radius:var(--radius);padding:8px 14px;text-align:center;min-width:60px;"><p style="font-size:18px;font-weight:700;">' + total + '</p><p style="font-size:10px;color:var(--text3);">Total</p></div>';
+  html += '<div style="flex-shrink:0;background:var(--danger-bg);border-radius:var(--radius);padding:8px 14px;text-align:center;min-width:60px;"><p style="font-size:18px;font-weight:700;color:var(--danger);">' + abertos + '</p><p style="font-size:10px;color:var(--danger);">Abertos</p></div>';
+  html += '<div style="flex-shrink:0;background:var(--warning-bg);border-radius:var(--radius);padding:8px 14px;text-align:center;min-width:60px;"><p style="font-size:18px;font-weight:700;color:var(--warning);">' + andamento + '</p><p style="font-size:10px;color:var(--warning);">Em andamento</p></div>';
+  html += '</div>';
+
+  // New chamado button
+  html += '<button id="btn-new-chamado" style="width:100%;padding:13px;border-radius:var(--radius-lg);background:var(--danger-bg);border:0.5px solid var(--danger);color:var(--danger);font-weight:600;font-size:14px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;">＋ Abrir novo chamado</button>';
+
+  // List
+  if (q) html += '<p style="font-size:12px;color:var(--text3);margin-bottom:8px;">' + filtered.length + ' resultado' + (filtered.length!==1?'s':'') + ' para "' + S.chamadoSearch + '"</p>';
+
+  html += '<div id="chamado-list">';
+  if (filtered.length === 0) {
+    html += '<div style="text-align:center;padding:3rem 1rem;color:var(--text2);">';
+    html += '<p style="font-size:32px;margin-bottom:12px;">📭</p>';
+    html += q ? '<p>Nenhum chamado encontrado.</p>' : '<p>Nenhum chamado registrado ainda.</p>';
+    html += '</div>';
+  } else {
+    filtered.forEach(ch => {
+      const st = statusStyle(ch.status);
+      const replyCount = (ch.replies||[]).length;
+      const lastReply = replyCount > 0 ? ch.replies[replyCount-1] : null;
+      html += '<button class="chamado-btn" data-cid="' + ch.id + '" style="width:100%;text-align:left;padding:14px;border-radius:var(--radius-lg);background:var(--bg);border:0.5px solid var(--border);margin-bottom:8px;cursor:pointer;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
+      html += '<div style="flex:1;margin-right:8px;">';
+      html += '<p style="font-weight:700;font-size:14px;">' + ch.model + '</p>';
+      if (ch.serial) html += '<p style="font-size:12px;color:var(--text3);margin-top:1px;">S/N: ' + ch.serial + '</p>';
+      html += '</div>';
+      html += '<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:' + st.bg + ';color:' + st.text + ';white-space:nowrap;">' + st.label + '</span>';
+      html += '</div>';
+      html += '<p style="font-size:13px;color:var(--text2);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + ch.description + '</p>';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+      html += '<p style="font-size:11px;color:var(--text3);">👤 ' + ch.mechanic + ' · ' + new Date(ch.date).toLocaleDateString("pt-BR") + '</p>';
+      if (replyCount > 0) html += '<span style="font-size:11px;color:var(--text3);">💬 ' + replyCount + ' resposta' + (replyCount>1?'s':'') + '</span>';
+      html += '</div></button>';
+    });
+  }
+  html += '</div>';
+  app.innerHTML = html;
+
+  // Search bind (no re-render on input)
+  const inp = document.getElementById("chamado-search");
+  if (inp) {
+    inp.value = S.chamadoSearch || "";
+    inp.oninput = e => {
+      S.chamadoSearch = e.target.value;
+      const clr = document.getElementById("chamado-search-clear");
+      if (clr) clr.style.display = e.target.value ? "block" : "none";
+      updateChamadoList();
+    };
+    if (S.chamadoSearch) {
+      const clr = document.getElementById("chamado-search-clear");
+      if (clr) clr.style.display = "block";
+    }
+  }
+  document.getElementById("chamado-search-clear").onclick = () => {
+    S.chamadoSearch = "";
+    inp.value = ""; inp.focus();
+    document.getElementById("chamado-search-clear").style.display = "none";
+    updateChamadoList();
+  };
+
+  document.getElementById("btn-back-chamados").onclick = () => { S.screen = "home"; render(); };
+  document.getElementById("btn-new-chamado").onclick = () => { S.screen = "chamado_new"; S.chamadoForm = {}; render(); };
+  bindChamadoList();
+}
+
+function updateChamadoList() {
+  const el = document.getElementById("chamado-list");
+  if (!el) return;
+  const q = (S.chamadoSearch||"").toLowerCase().trim();
+  const filtered = q ? chamados.filter(ch =>
+    (ch.model||"").toLowerCase().includes(q) ||
+    (ch.serial||"").toLowerCase().includes(q) ||
+    (ch.mechanic||"").toLowerCase().includes(q) ||
+    (ch.description||"").toLowerCase().includes(q) ||
+    (ch.replies||[]).some(r => (r.text||"").toLowerCase().includes(q)||(r.mechanic||"").toLowerCase().includes(q))
+  ) : chamados;
+
+  // Update count label if exists
+  const prev = el.previousSibling;
+
+  let html = '';
+  if (filtered.length === 0) {
+    html = '<div style="text-align:center;padding:3rem 1rem;color:var(--text2);"><p style="font-size:32px;margin-bottom:12px;">📭</p><p>' + (q?"Nenhum chamado encontrado.":"Nenhum chamado registrado ainda.") + '</p></div>';
+  } else {
+    filtered.forEach(ch => {
+      const st = statusStyle(ch.status);
+      const replyCount = (ch.replies||[]).length;
+      html += '<button class="chamado-btn" data-cid="' + ch.id + '" style="width:100%;text-align:left;padding:14px;border-radius:var(--radius-lg);background:var(--bg);border:0.5px solid var(--border);margin-bottom:8px;cursor:pointer;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
+      html += '<div style="flex:1;margin-right:8px;"><p style="font-weight:700;font-size:14px;">' + ch.model + '</p>';
+      if (ch.serial) html += '<p style="font-size:12px;color:var(--text3);margin-top:1px;">S/N: ' + ch.serial + '</p>';
+      html += '</div><span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;background:' + st.bg + ';color:' + st.text + ';white-space:nowrap;">' + st.label + '</span></div>';
+      html += '<p style="font-size:13px;color:var(--text2);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + ch.description + '</p>';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;"><p style="font-size:11px;color:var(--text3);">👤 ' + ch.mechanic + ' · ' + new Date(ch.date).toLocaleDateString("pt-BR") + '</p>';
+      if (replyCount > 0) html += '<span style="font-size:11px;color:var(--text3);">💬 ' + replyCount + ' resposta' + (replyCount>1?'s':'') + '</span>';
+      html += '</div></button>';
+    });
+  }
+  el.innerHTML = html;
+  bindChamadoList();
+}
+
+function bindChamadoList() {
+  document.querySelectorAll(".chamado-btn").forEach(b => b.onclick = () => {
+    const ch = chamados.find(c => c.id === b.dataset.cid);
+    if (ch) { S.selectedChamado = ch; S.screen = "chamado_detail"; render(); }
+  });
+}
+
+function rChamadoNew(app) {
+  const w = hdr(app, "Novo Chamado", "chamados");
+  const f = S.chamadoForm || {};
+  let html = '<div style="display:flex;flex-direction:column;gap:14px;">';
+  html += '<div><span class="lbl">Mecânico responsável</span><div style="display:flex;gap:6px;">';
+  MECHANICS.forEach(m => {
+    const sel = f.mechanic === m;
+    html += '<button class="ch-mec-btn" data-mec="' + m + '" style="flex:1;padding:10px 4px;border-radius:var(--radius);border:' + (sel?"2px solid var(--info)":"0.5px solid var(--border)") + ';background:' + (sel?"var(--info-bg)":"var(--bg)") + ';font-size:13px;font-weight:' + (sel?"600":"400") + ';color:' + (sel?"var(--info)":"var(--text)") + ';">' + m + '</button>';
+  });
+  html += '</div></div>';
+  // Build machine list from all records (prep + instalacao), deduplicated by serial
+  const machineMap = {};
+  S.records.forEach(r => {
+    if (!r.serial) return;
+    const key = r.serial.trim().toLowerCase();
+    if (!machineMap[key]) {
+      machineMap[key] = { model: r.model, serial: r.serial, type: r.type, protocol: r.protocol, date: r.date };
+    } else {
+      // Prefer instalacao record (has OS) over envio
+      if (r.type === "instalacao" && r.protocol) machineMap[key] = { model: r.model, serial: r.serial, type: r.type, protocol: r.protocol, date: r.date };
+    }
+  });
+  const machines = Object.values(machineMap).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  if (machines.length > 0) {
+    html += '<div>';
+    html += '<span class="lbl">Selecionar máquina <span style="color:var(--danger);">*</span></span>';
+    html += '<p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Escolha a máquina relacionada ao chamado</p>';
+    // Search within machines
+    html += '<div style="position:relative;margin-bottom:10px;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span><input id="ch-machine-search" placeholder="Buscar por modelo ou série..." style="width:100%;padding:10px 10px 10px 32px;" oninput="filterChamadoMachines(this.value)" /></div>';
+    html += '<div id="ch-machine-list" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">';
+    machines.forEach(m => {
+      const isInstalled = m.type === "instalacao" || (m.protocol && m.protocol.startsWith("OS-"));
+      const icon = isInstalled ? "🔧" : "📦";
+      const bg = (f.selectedMachineSerial === m.serial) ? "var(--info-bg)" : "var(--bg)";
+      const border = (f.selectedMachineSerial === m.serial) ? "2px solid var(--info)" : "0.5px solid var(--border)";
+      const statusBadge = m.protocol
+        ? '<span style="font-size:10px;font-weight:700;color:var(--info);background:var(--info-bg);padding:1px 7px;border-radius:99px;">'+m.protocol+'</span>'
+        : '<span style="font-size:10px;color:var(--text3);background:var(--bg2);padding:1px 7px;border-radius:99px;">Sem OS</span>';
+      html += '<button class="ch-machine-btn" data-serial="'+m.serial+'" data-model="'+m.model+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);border:'+border+';background:'+bg+';text-align:left;width:100%;cursor:pointer;">';
+      html += '<span style="font-size:20px;flex-shrink:0;">'+icon+'</span>';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><p style="font-weight:600;font-size:14px;">'+m.model+'</p>'+statusBadge+'</div>';
+      html += '<p style="font-size:12px;color:var(--text2);margin-top:1px;">S/N: '+m.serial+'</p>';
+      html += '</div>';
+      if (f.selectedMachineSerial === m.serial) html += '<span style="font-size:18px;color:var(--info);">✓</span>';
+      html += '</button>';
+    });
+    html += '</div></div>';
+  }
+
+  // Show model/serial as read-only if machine selected, or manual if none available
+  if (f.selectedMachineSerial) {
+    html += '<div style="background:var(--info-bg);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:8px;">';
+    html += '<span style="font-size:16px;">✓</span>';
+    html += '<div><p style="font-size:12px;color:var(--text3);">Máquina selecionada</p>';
+    html += '<p style="font-weight:600;font-size:14px;color:var(--info);">'+f.model+' · S/N: '+f.serial+'</p></div>';
+    html += '</div>';
+  } else {
+    html += '<div style="background:var(--bg2);border-radius:var(--radius);padding:10px 14px;">';
+    html += '<p style="font-size:12px;color:var(--text3);">Ou preencha manualmente se a máquina não estiver listada:</p>';
+    html += '</div>';
+    html += '<div><span class="lbl">Modelo da máquina</span>';
+  html += '<select id="ch-model-sel" style="width:100%;padding:10px 12px;border-radius:var(--radius);background:var(--bg2);border:0.5px solid var(--border);font-size:14px;color:var(--text);margin-bottom:6px;">';
+  html += '<option value="">— Selecionar modelo —</option>';
+  MACHINE_MODELS.forEach(m => { html += '<option value="RICOMA '+m+'"'+(f.model==="RICOMA "+m?' selected':'')+'>RICOMA '+m+'</option>'; });
+  html += '<option value="__outro__"'+(f.model&&!MACHINE_MODELS.some(m=>"RICOMA "+m===f.model)?'selected':'')+'>Outro</option>';
+  html += '</select>';
+  if (f.model && !MACHINE_MODELS.some(m=>"RICOMA "+m===f.model)) {
+    html += '<input id="ch-model" placeholder="Digite o modelo..." value="'+(f.model||"")+'" style="width:100%;" />';
+  }
+  html += '</div>';
+    html += '<div><span class="lbl">Número de série</span><input id="ch-serial" placeholder="Ex: SN-202401-001" value="' + (f.serial||"") + '" style="width:100%;" /></div>';
+  }
+  html += '<div><span class="lbl">Descrição do problema</span><textarea id="ch-desc" placeholder="Descreva o problema detalhadamente, cole o conteúdo do e-mail inicial..." style="width:100%;min-height:120px;font-size:14px;">' + (f.description||"") + '</textarea></div>';
+  html += '<div><span class="lbl">Fotos (opcional)</span>';
+  const photos = f.photos || [];
+  if (photos.length > 0) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">';
+    photos.forEach((p,i) => {
+      html += '<div style="position:relative;width:80px;height:80px;">';
+      html += '<img src="' + p + '" onclick="openLightbox(this.src,\'Foto \'+(i+1))" style="width:80px;height:80px;border-radius:6px;object-fit:cover;cursor:zoom-in;" />';
+      html += '<button class="ch-rm-photo" data-idx="' + i + '" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--danger);border:none;color:#fff;font-size:12px;cursor:pointer;">✕</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '<input type="file" id="ch-photo-input" accept="image/*" capture="environment" style="display:none;" />';
+  html += '<button id="ch-add-photo" style="width:100%;padding:10px;border-radius:var(--radius);border:0.5px dashed var(--border2);background:transparent;font-size:13px;color:var(--text2);">📷 Adicionar foto' + (photos.length>0?" ("+photos.length+")":"") + '</button>';
+  html += '</div>';
+  html += '<button id="ch-submit" style="padding:14px;border-radius:var(--radius);background:var(--danger-bg);border:none;color:var(--danger);font-weight:600;font-size:15px;width:100%;margin-top:4px;">' + (S.saving?"Abrindo chamado...":"Abrir chamado →") + '</button>';
+  html += '</div>';
+  w.insertAdjacentHTML("beforeend", html);
+
+  document.querySelectorAll(".back-btn").forEach(b => {
+    if (b.dataset.t === "chamados") b.onclick = () => { S.screen = "chamados"; render(); };
+  });
+  document.querySelectorAll(".ch-mec-btn").forEach(b => b.onclick = () => { S.chamadoForm.mechanic = b.dataset.mec; render(); });
+
+  // Machine selection
+  document.querySelectorAll(".ch-machine-btn").forEach(b => b.onclick = () => {
+    S.chamadoForm.selectedMachineSerial = b.dataset.serial;
+    S.chamadoForm.model = b.dataset.model;
+    S.chamadoForm.serial = b.dataset.serial;
+    render();
+  });
+
+  // Manual fields (only shown when no machine selected)
+  const chModel = document.getElementById("ch-model");
+  if (chModel) chModel.oninput = e => S.chamadoForm.model = e.target.value;
+  const chSerial = document.getElementById("ch-serial");
+  if (chSerial) chSerial.oninput = e => S.chamadoForm.serial = e.target.value;
+  document.getElementById("ch-desc").oninput = e => S.chamadoForm.description = e.target.value;
+  document.getElementById("ch-add-photo").onclick = () => document.getElementById("ch-photo-input").click();
+  document.getElementById("ch-photo-input").onchange = e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w2=img.width, h2=img.height, max=1024;
+        if(w2>max){h2=Math.round(h2*max/w2);w2=max;}
+        if(h2>max){w2=Math.round(w2*max/h2);h2=max;}
+        canvas.width=w2; canvas.height=h2;
+        canvas.getContext("2d").drawImage(img,0,0,w2,h2);
+        if (!S.chamadoForm.photos) S.chamadoForm.photos = [];
+        S.chamadoForm.photos.push(canvas.toDataURL("image/jpeg",0.65));
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  document.querySelectorAll(".ch-rm-photo").forEach(b => b.onclick = () => {
+    S.chamadoForm.photos.splice(parseInt(b.dataset.idx),1); render();
+  });
+  document.getElementById("ch-submit").onclick = () => {
+    const f2 = S.chamadoForm;
+    if (!f2.mechanic) { alert("Selecione o mecânico responsável."); return; }
+    if (!f2.model && !f2.selectedMachineSerial) { alert("Selecione ou informe a máquina."); return; }
+    if (!f2.description || !f2.description.trim()) { alert("Descreva o problema."); return; }
+    openNewChamado(f2);
+  };
+}
+
+function rChamadoDetail(app) {
+  const ch = S.selectedChamado;
+  if (!ch) { S.screen="chamados"; render(); return; }
+  // Refresh from chamados array
+  const fresh = chamados.find(c => c.id === ch.id) || ch;
+  S.selectedChamado = fresh;
+  const st = statusStyle(fresh.status);
+  const w = hdr(app, "Detalhes do Chamado", "chamados");
+
+  let html = '';
+  // Header card
+  html += '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
+  html += '<div><p style="font-weight:700;font-size:16px;">' + fresh.model + '</p>';
+  if (fresh.serial) html += '<p style="font-size:12px;color:var(--text3);margin-top:2px;">S/N: ' + fresh.serial + '</p>';
+  html += '</div>';
+  html += '<span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:99px;background:' + st.bg + ';color:' + st.text + ';">' + st.label + '</span>';
+  html += '</div>';
+  html += '<p style="font-size:12px;color:var(--text3);">👤 ' + fresh.mechanic + ' · Aberto em ' + fmtDate(fresh.date) + '</p>';
+  if (fresh.linkedProtocol) {
+    html += '<div style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;background:var(--info-bg);padding:4px 12px;border-radius:99px;">';
+    html += '<span style="font-size:12px;">🔗</span>';
+    html += '<p style="font-size:12px;font-weight:600;color:var(--info);">Vinculado à ' + fresh.linkedProtocol + '</p>';
+    html += '</div>';
+  }
+  if (fresh.serial) {
+    html += '<p style="font-size:12px;color:var(--text3);margin-top:4px;">🔩 S/N: ' + fresh.serial + '</p>';
+  }
+  html += '</div>';
+
+  // Status actions
+  html += '<div style="display:flex;gap:6px;margin-bottom:1rem;">';
+  if (fresh.status !== "resolvido") {
+    html += '<button id="btn-resolver" style="flex:1;padding:10px;border-radius:var(--radius);background:var(--success-bg);border:none;color:var(--success);font-weight:600;font-size:13px;">✓ Marcar resolvido</button>';
+  } else {
+    html += '<button id="btn-reabrir" style="flex:1;padding:10px;border-radius:var(--radius);background:var(--warning-bg);border:none;color:var(--warning);font-weight:600;font-size:13px;">↩ Reabrir chamado</button>';
+  }
+  html += '</div>';
+
+  // Thread — WhatsApp style
+  html += '<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:1rem;padding:4px 0;">';
+
+  // Opening message — always left (team side)
+  html += '<div style="display:flex;flex-direction:column;align-items:flex-start;">';
+  html += '<div style="max-width:85%;background:var(--bg2);border-radius:4px 16px 16px 16px;padding:10px 14px;border:0.5px solid var(--border);">';
+  html += '<p style="font-size:11px;font-weight:600;color:var(--info);margin-bottom:4px;">🏢 ' + fresh.mechanic + '</p>';
+  html += '<p style="font-size:14px;white-space:pre-wrap;line-height:1.5;color:var(--text);">' + fresh.description + '</p>';
+  if ((fresh.photos||[]).length > 0) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
+    fresh.photos.forEach((p,i) => {
+      html += '<img src="' + p + '" onclick="openLightbox(this.src,&apos;Foto &apos;+(i+1))" style="width:80px;height:80px;border-radius:8px;object-fit:cover;cursor:zoom-in;" />';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  html += '<p style="font-size:10px;color:var(--text3);margin-top:3px;margin-left:4px;">📅 ' + fmtDate(fresh.date) + ' · Abertura</p>';
+  html += '</div>';
+
+  // Replies
+  (fresh.replies||[]).forEach((r, ridx) => {
+    const isFactory = r.isFactory;
+    // Factory = right side (orange), Team = left side (blue)
+    const align = isFactory ? 'flex-end' : 'flex-start';
+    const bubbleBg = isFactory ? 'var(--warning-bg)' : 'var(--bg2)';
+    const bubbleBorder = isFactory ? '0.5px solid var(--warning)' : '0.5px solid var(--border)';
+    const nameColor = isFactory ? 'var(--warning)' : 'var(--info)';
+    const borderRadius = isFactory ? '16px 4px 16px 16px' : '4px 16px 16px 16px';
+    const prefix = isFactory ? '🏭' : '🔧';
+    const name = isFactory ? 'Fábrica / CNI' : (r.mechanic || 'Equipe');
+
+    html += '<div style="display:flex;flex-direction:column;align-items:' + align + ';">';
+    html += '<div style="max-width:85%;background:' + bubbleBg + ';border-radius:' + borderRadius + ';padding:10px 14px;border:' + bubbleBorder + ';">';
+    html += '<p style="font-size:11px;font-weight:600;color:' + nameColor + ';margin-bottom:4px;">' + prefix + ' ' + name + '</p>';
+    html += '<p style="font-size:14px;white-space:pre-wrap;line-height:1.5;color:var(--text);">' + r.text + '</p>';
+    if ((r.photos||[]).length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
+      r.photos.forEach((p,i) => {
+        html += '<img src="' + p + '" onclick="openLightbox(this.src,&apos;Foto &apos;+(i+1))" style="width:80px;height:80px;border-radius:8px;object-fit:cover;cursor:zoom-in;" />';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '<p style="font-size:10px;color:var(--text3);margin-top:3px;' + (isFactory?'margin-right:4px;':'margin-left:4px;') + '">📅 ' + fmtDate(r.date) + '</p>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+
+  // Reply form
+  if (fresh.status !== "resolvido") {
+    html += '<div style="border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:1rem;">';
+    html += '<p style="font-size:13px;font-weight:600;margin-bottom:10px;">💬 Adicionar resposta</p>';
+    html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
+    html += '<button class="reply-type-btn" data-factory="false" style="flex:1;padding:8px;border-radius:var(--radius);border:' + (!S.replyIsFactory?"2px solid var(--info)":"0.5px solid var(--border)") + ';background:' + (!S.replyIsFactory?"var(--info-bg)":"var(--bg)") + ';font-size:12px;font-weight:' + (!S.replyIsFactory?"600":"400") + ';color:' + (!S.replyIsFactory?"var(--info)":"var(--text2)") + ';">🔧 Nossa equipe</button>';
+    html += '<button class="reply-type-btn" data-factory="true" style="flex:1;padding:8px;border-radius:var(--radius);border:' + (S.replyIsFactory?"2px solid var(--warning)":"0.5px solid var(--border)") + ';background:' + (S.replyIsFactory?"var(--warning-bg)":"var(--bg)") + ';font-size:12px;font-weight:' + (S.replyIsFactory?"600":"400") + ';color:' + (S.replyIsFactory?"var(--warning)":"var(--text2)") + ';">🏭 Fábrica/CNI</button>';
+    html += '</div>';
+    if (!S.replyIsFactory) {
+      html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
+      MECHANICS.forEach(m => {
+        const sel = S.replyMechanic === m;
+        html += '<button class="reply-mec-btn" data-mec="' + m + '" style="flex:1;padding:8px 4px;border-radius:var(--radius);border:' + (sel?"2px solid var(--info)":"0.5px solid var(--border)") + ';background:' + (sel?"var(--info-bg)":"var(--bg)") + ';font-size:12px;font-weight:' + (sel?"600":"400") + ';color:' + (sel?"var(--info)":"var(--text)") + ';">' + m + '</button>';
+      });
+      html += '</div>';
+    }
+    html += '<textarea id="reply-text" placeholder="Cole o conteúdo do e-mail ou escreva a resposta..." style="width:100%;min-height:100px;font-size:14px;margin-bottom:10px;">' + (S.replyText||"") + '</textarea>';
+    // Reply photos
+    const rPhotos = S.replyPhotos || [];
+    if (rPhotos.length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">';
+      rPhotos.forEach((p,i) => {
+        html += '<div style="position:relative;width:72px;height:72px;">';
+        html += '<img src="' + p + '" onclick="openLightbox(this.src,&apos;&apos;)" style="width:72px;height:72px;border-radius:6px;object-fit:cover;cursor:zoom-in;" />';
+        html += '<button class="reply-rm-photo" data-idx="' + i + '" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);border:none;color:#fff;font-size:11px;cursor:pointer;">✕</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    html += '<input type="file" id="reply-photo-input" accept="image/*" capture="environment" style="display:none;" />';
+    html += '<div style="display:flex;gap:8px;">';
+    html += '<button id="reply-add-photo" style="flex:1;padding:10px;border-radius:var(--radius);border:0.5px dashed var(--border2);background:transparent;font-size:13px;color:var(--text2);">📷' + (rPhotos.length>0?" "+rPhotos.length+" foto(s)":"") + '</button>';
+    html += '<button id="reply-submit" style="flex:2;padding:10px;border-radius:var(--radius);background:var(--info-bg);border:none;color:var(--info);font-weight:600;font-size:13px;">Enviar resposta →</button>';
+    html += '</div></div>';
+  }
+
+  w.insertAdjacentHTML("beforeend", html);
+
+  // Back button
+  document.querySelectorAll(".back-btn").forEach(b => {
+    if (b.dataset.t === "chamados") b.onclick = () => { S.screen = "chamados"; render(); };
+    if (b.dataset.t === "chamado_new") b.onclick = () => { S.screen = "chamado_new"; render(); };
+  });
+  document.querySelectorAll(".linked-chamado-btn").forEach(b => b.onclick = () => {
+    const ch = chamados.find(c => c.id === b.dataset.cid);
+    if (ch) { S.selectedChamado = ch; S.screen = "chamado_detail"; render(); }
+  });
+
+  // Bind status buttons
+  const btnResolver = document.getElementById("btn-resolver");
+  if (btnResolver) btnResolver.onclick = () => { if(confirm("Marcar este chamado como RESOLVIDO?")) setChamadoStatus(fresh.id,"resolvido"); };
+  const btnReabrir = document.getElementById("btn-reabrir");
+  if (btnReabrir) btnReabrir.onclick = () => { if(confirm("Reabrir este chamado?")) setChamadoStatus(fresh.id,"aberto"); };
+
+  // Reply form binds
+  document.querySelectorAll(".reply-type-btn").forEach(b => b.onclick = () => { S.replyIsFactory = b.dataset.factory === "true"; render(); });
+  document.querySelectorAll(".reply-mec-btn").forEach(b => b.onclick = () => { S.replyMechanic = b.dataset.mec; render(); });
+  const rt = document.getElementById("reply-text");
+  if (rt) rt.oninput = e => S.replyText = e.target.value;
+  const rap = document.getElementById("reply-add-photo");
+  if (rap) rap.onclick = () => document.getElementById("reply-photo-input")?.click();
+  const rpi = document.getElementById("reply-photo-input");
+  if (rpi) rpi.onchange = e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img2 = new Image();
+      img2.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w2=img2.width,h2=img2.height,max=1024;
+        if(w2>max){h2=Math.round(h2*max/w2);w2=max;}
+        if(h2>max){w2=Math.round(w2*max/h2);h2=max;}
+        canvas.width=w2;canvas.height=h2;
+        canvas.getContext("2d").drawImage(img2,0,0,w2,h2);
+        if(!S.replyPhotos)S.replyPhotos=[];
+        S.replyPhotos.push(canvas.toDataURL("image/jpeg",0.65));
+        render();
+      };
+      img2.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  document.querySelectorAll(".reply-rm-photo").forEach(b => b.onclick = () => { S.replyPhotos.splice(parseInt(b.dataset.idx),1); render(); });
+  const rs = document.getElementById("reply-submit");
+  if (rs) rs.onclick = () => {
+    const text = document.getElementById("reply-text")?.value || "";
+    if (!text.trim()) { alert("Digite o conteúdo da resposta."); return; }
+    if (!S.replyIsFactory && !S.replyMechanic) { alert("Selecione o técnico responsável."); return; }
+    const reply = {
+      date: new Date().toISOString(),
+      text: text.trim(),
+      isFactory: !!S.replyIsFactory,
+      mechanic: S.replyIsFactory ? "Fábrica/CNI" : S.replyMechanic,
+      photos: S.replyPhotos || []
+    };
+    S.replyText = ""; S.replyPhotos = []; S.replyIsFactory = false; S.replyMechanic = "";
+    addReply(fresh.id, reply);
+  };
+}
+
+function getBlockedSerials() {
+  // A serial is "blocked for new preparation" if it already has an instalacao
+  const linked = new Set();
+  S.records.forEach(r => {
+    if (r.type === "instalacao") {
+      if (r.serial) linked.add(r.serial.trim().toLowerCase());
+      if (r.linkedRecordId) {
+        const prep = S.records.find(p => p.id === r.linkedRecordId);
+        if (prep && prep.serial) linked.add(prep.serial.trim().toLowerCase());
+      }
+    }
+  });
+  return linked;
+}
+
+function getExistingPrep(serial) {
+  // Returns any preparation record with this serial (for dedup check)
+  if (!serial || !serial.trim()) return null;
+  const s = serial.trim().toLowerCase();
+  return S.records.find(r => r.type === "envio" && r.serial && r.serial.trim().toLowerCase() === s);
+}
+
+function getInstalacaoForSerial(serial) {
+  if (!serial || !serial.trim()) return null;
+  const s = serial.trim().toLowerCase();
+  return S.records.find(r => {
+    if (r.type !== "instalacao") return false;
+    if (r.serial && r.serial.trim().toLowerCase() === s) return true;
+    if (r.linkedRecordId) {
+      const prep = S.records.find(p => p.id === r.linkedRecordId);
+      return prep && prep.serial && prep.serial.trim().toLowerCase() === s;
+    }
+    return false;
+  });
+}
+
+function isSerialDuplicatePrep(serial, currentRecordId) {
+  // Returns true if another PREPARATION already uses this serial
+  if (!serial || !serial.trim()) return false;
+  const s = serial.trim().toLowerCase();
+  return S.records.some(r =>
+    r.type === "envio" &&
+    r.serial && r.serial.trim().toLowerCase() === s &&
+    r.id !== currentRecordId
+  );
+}
+
+function isSerialBlocked(serial) {
+  if (!serial || !serial.trim()) return false;
+  return getBlockedSerials().has(serial.trim().toLowerCase());
+}
+
+function generateProtocol(type) {
+  if (type !== "instalacao") return null; // Only instalacao gets OS
+  const existing = S.records.filter(r => r.type === "instalacao" && r.protocol).length;
+  const num = String(existing + 1).padStart(3, "0");
+  return "OS-" + num;
+}
+
+function submitForm() {
+  const f = S.form;
+  if (!f.mechanic || !f.model) { alert("Selecione o mecânico e informe o modelo."); return; }
+  if (!f.serial || !f.serial.trim()) { alert("O número de série é obrigatório."); return; }
+
+  // Block envio if serial already installed
+  if (f.type === "envio" && S.screen !== "edit") {
+    const instalRec = getInstalacaoForSerial(f.serial);
+    if (instalRec) {
+      const osNum = instalRec.protocol || "uma instalação";
+      alert("🔒 Número de série bloqueado\n\nEsta máquina já está vinculada à " + osNum + ".\nEla foi vendida e não pode ser preparada novamente.");
+      return;
+    }
+    // Also block if another preparation already uses this serial
+    if (isSerialDuplicatePrep(f.serial, S.form.id || "")) {
+      const existingPrep = getExistingPrep(f.serial);
+      alert("🔒 Número de série duplicado\n\nJá existe uma preparação com o número de série " + f.serial + ".\nCada máquina deve ter um número de série único.");
+      return;
+    }
+  }
+
+  // Block instalacao if serial already installed
+  if (f.type === "instalacao" && S.screen !== "edit") {
+    const instalExisting = getInstalacaoForSerial(f.serial);
+    if (instalExisting) {
+      const osNum = instalExisting.protocol || "uma instalação anterior";
+      alert("🔒 Máquina já instalada\n\nEste número de série já está vinculado à " + osNum + ".\nNão é possível criar uma nova instalação para esta máquina.");
+      return;
+    }
+  }
+  const unc = CHECKLISTS[f.type].items.filter(i => !f.items[i.id]);
+  if (unc.length > 0 && !confirm(`${unc.length} item(s) não verificado(s). Salvar assim mesmo?`)) return;
+  if (S.screen === "edit") {
+    submitEdit();
+  } else {
+    const protocol = generateProtocol(f.type);
+    const newRec = { ...f, id:"r"+Date.now(), date: new Date().toISOString(), protocol };
+    // If instalacao links to a prep record, give that prep the same OS
+    if (f.type === "instalacao" && f.linkedRecordId && protocol) {
+      const prepIdx = S.records.findIndex(r => r.id === f.linkedRecordId);
+      if (prepIdx >= 0) {
+        const updatedPrep = { ...S.records[prepIdx], protocol };
+        S.db.collection("checklists").doc(updatedPrep.id).set(updatedPrep);
+      }
+    }
+    saveRecord(newRec);
+  }
+}
+
+function checkPass() {
+  const p = prompt("Digite a senha de acesso:");
+  return p === "373737";
+}
+
+function generateDiff(oldRec, newRec) {
+  const changes = [];
+  const cl = CHECKLISTS[oldRec.type] || CHECKLISTS[newRec.type];
+  if (oldRec.mechanic !== newRec.mechanic) changes.push(`Mecânico: "${oldRec.mechanic}" → "${newRec.mechanic}"`);
+  if (oldRec.model !== newRec.model) changes.push(`Modelo: "${oldRec.model}" → "${newRec.model}"`);
+  if ((oldRec.serial||"") !== (newRec.serial||"")) changes.push(`N° série: "${oldRec.serial||"—"}" → "${newRec.serial||"—"}"`);
+  (cl?.items||[]).forEach(item => {
+    const ov = oldRec.items?.[item.id], nv = newRec.items?.[item.id];
+    if (ov !== nv) changes.push(`"${item.label}": ${sl(ov)} → ${sl(nv)}`);
+    const on = oldRec.notes?.[item.id]||"", nn = newRec.notes?.[item.id]||"";
+    if (on !== nn) changes.push(`Obs. "${item.label}": "${on||"—"}" → "${nn||"—"}"`);
+  });
+  if ((oldRec.observation||"") !== (newRec.observation||"")) changes.push(`Observações gerais alteradas`);
+  if ((oldRec.compNote||"") !== (newRec.compNote||"")) changes.push(`Complemento (texto) alterado`);
+  const oldPhotos = (oldRec.compPhotos||[]).length, newPhotos = (newRec.compPhotos||[]).length;
+  if (oldPhotos !== newPhotos) changes.push(`Fotos complemento: ${oldPhotos} → ${newPhotos}`);
+  return changes;
+}
+
+function submitEdit() {
+  const f = S.form;
+  if (!f.mechanic || !f.model) { alert("Selecione o mecânico e informe o modelo."); return; }
+  const orig = S.editingRecord;
+  const changes = generateDiff(orig, f);
+  const histEntry = {
+    date: new Date().toISOString(),
+    mechanic: f.mechanic,
+    changes: changes.length > 0 ? changes : ["Nenhuma alteração detectada"]
+  };
+  const updated = {
+    ...f,
+    id: orig.id,
+    date: orig.date,
+    editHistory: [...(orig.editHistory||[]), histEntry]
+  };
+  saveRecord(updated);
+}
+
+// ── HELPERS ──────────────────────────────────────────────
+function persist() {
+  const o=document.getElementById("obs"); if(o) S.form.observation=o.value;
+  const c=document.getElementById("comp-note"); if(c) S.form.compNote=c.value;
+  document.querySelectorAll(".ni").forEach(n => { S.form.notes[n.dataset.id]=n.value; });
+}
+
+function readFile(file, cb) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxW = 1024, maxH = 1024;
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.65));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+}
+
+function sc(st) { return st==="ok"?"var(--success)":st==="problema"?"var(--danger)":st==="na"?"var(--text2)":"var(--text3)"; }
+function sb(st) { return st==="ok"?"var(--success-bg)":st==="problema"?"var(--danger-bg)":st==="na"?"var(--bg2)":"var(--bg)"; }
+function si(st) { return st==="ok"?"✓":st==="problema"?"✕":st==="na"?"—":"○"; }
+function sl(st) { return st==="ok"?"OK":st==="problema"?"Problema":st==="na"?"N/A":"—"; }
+
+// ── RENDER ───────────────────────────────────────────────
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  if (S.screen==="home")    rHome(app);
+  else if (S.screen==="new") { if(S.step===0) rStep0(app); else if(S.step===1) rStep1(app); else rStep2(app); }
+  else if (S.screen==="edit") { if(S.step===0) rStep0(app); else if(S.step===1) rStep1(app); else rStep2(app); }
+  else if (S.screen==="records") rRecords(app);
+  else if (S.screen==="detail")  rDetail(app);
+  else if (S.screen==="chamados") rChamados(app);
+  else if (S.screen==="chamado_new") rChamadoNew(app);
+  else if (S.screen==="chamado_detail") rChamadoDetail(app);
+  else if (S.screen==="history") rHistory(app);
+  else if (S.screen==="knowledge") rKnowledge(app);
+  else if (S.screen==="knowledge_model") rKnowledgeModel(app);
+  else if (S.screen==="knowledge_new") rKnowledgeNew(app);
+  else if (S.screen==="dashboard") rDashboard(app);
+  bind();
+}
+
+function hdr(app, title, back) {
+  const w = document.createElement("div");
+  w.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;">
+    <button class="back-btn" data-t="${back}" style="padding:7px 9px;background:var(--bg2);border-radius:var(--radius);display:flex;align-items:center;font-size:18px;">←</button>
+    <h2 style="font-size:18px;font-weight:600;">${title}</h2>
+  </div>`;
+  app.appendChild(w); return w;
+}
+
+function updateHomeResults() {
+  // Re-render home with current search state
+  const app = document.getElementById("app");
+  if (S.screen === "home" && app) {
+    const inp = document.getElementById("home-search");
+    if (inp) S.homeSearch = inp.value;
+    rHome(app);
+    // Re-bind search without losing focus
+    const newInp = document.getElementById("home-search");
+    if (newInp) {
+      newInp.value = S.homeSearch || "";
+      newInp.focus();
+      newInp.setSelectionRange(newInp.value.length, newInp.value.length);
+      newInp.oninput = e => {
+        S.homeSearch = e.target.value;
+        const clr = document.getElementById("home-search-clear");
+        if (clr) clr.style.display = e.target.value ? "block" : "none";
+        updateHomeResults();
+      };
+    }
+    const clr2 = document.getElementById("home-search-clear");
+    if (clr2) clr2.onclick = () => { S.homeSearch=""; const i=document.getElementById("home-search"); if(i){i.value="";i.focus();} clr2.style.display="none"; updateHomeResults(); };
+  }
+  const el = document.getElementById("home-results-legacy");
+  if (!el) return;
+  const recs = S.records;
+  const today = new Date().toDateString();
+  const tc = recs.filter(r => new Date(r.date).toDateString() === today).length;
+  const m = new Date();
+  const mc = recs.filter(r => { const d=new Date(r.date); return d.getMonth()===m.getMonth()&&d.getFullYear()===m.getFullYear(); }).length;
+  const q = (S.homeSearch||"").toLowerCase().trim();
+  const hits = q ? recs.filter(r => (r.model||"").toLowerCase().includes(q)||(r.serial||"").toLowerCase().includes(q)) : [];
+
+  let html = '';
+  if (q) {
+    html += '<p style="font-size:12px;color:var(--text3);margin-bottom:8px;">' + hits.length + ' resultado' + (hits.length!==1?'s':'') + ' para "' + S.homeSearch + '"</p>';
+    if (hits.length === 0) {
+      html += '<div style="text-align:center;padding:2rem 1rem;color:var(--text2);border:0.5px dashed var(--border);border-radius:var(--radius-lg);">';
+      html += '<p style="font-size:24px;margin-bottom:8px;">🔎</p>';
+      html += '<p style="font-size:14px;">Nenhum equipamento encontrado.</p>';
+      html += '<p style="font-size:12px;color:var(--text3);margin-top:4px;">Verifique o modelo ou número de série.</p></div>';
+    } else {
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      hits.forEach(r => {
+        const ok = (CHECKLISTS[r.type]?.items||[]).filter(i=>r.items?.[i.id]==="ok").length;
+        const pr = (CHECKLISTS[r.type]?.items||[]).filter(i=>r.items?.[i.id]==="problema").length;
+        html += '<button class="res-rec-btn" data-rid="' + r.id + '" style="text-align:left;width:100%;padding:12px 14px;border-radius:var(--radius);background:var(--bg);border:0.5px solid var(--border);">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;"><div>';
+        html += '<p style="font-weight:600;font-size:14px;">' + r.model + '</p>';
+        html += '<p style="font-size:12px;color:var(--text2);margin-top:2px;">' + r.mechanic + ' · ' + (CHECKLISTS[r.type]?.label||'') + '</p>';
+        if (r.serial) html += '<p style="font-size:11px;color:var(--text3);margin-top:1px;">S/N: ' + r.serial + '</p>';
+        html += '</div><p style="font-size:11px;color:var(--text3);">' + new Date(r.date).toLocaleDateString("pt-BR") + '</p></div>';
+        html += '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">';
+        html += '<span class="pill" style="background:var(--success-bg);color:var(--success);">' + ok + ' OK</span>';
+        if (pr>0) html += '<span class="pill" style="background:var(--danger-bg);color:var(--danger);">' + pr + ' prob.</span>';
+        html += '</div></button>';
+      });
+      html += '</div>';
+    }
+  } else {
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;">';
+    html += '<div class="surface"><p style="font-size:12px;color:var(--text2);">Hoje</p><p style="font-size:24px;font-weight:700;margin-top:4px;">' + (S.loading?'…':tc) + '</p></div>';
+    html += '<div class="surface"><p style="font-size:12px;color:var(--text2);">Este mês</p><p style="font-size:24px;font-weight:700;margin-top:4px;">' + (S.loading?'…':mc) + '</p></div>';
+    html += '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    html += '<button class="nav-btn" data-s="new" style="padding:16px;border-radius:var(--radius-lg);text-align:left;width:100%;display:flex;align-items:center;gap:12px;">';
+    html += '<div style="width:42px;height:42px;border-radius:10px;background:var(--info-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;">＋</div>';
+    html += '<div><p style="font-weight:600;font-size:15px;">Novo checklist</p><p style="font-size:13px;color:var(--text2);margin-top:2px;">Iniciar verificação de máquina</p></div></button>';
+    html += '<button class="nav-btn" data-s="records" style="padding:16px;border-radius:var(--radius-lg);text-align:left;width:100%;display:flex;align-items:center;gap:12px;">';
+    html += '<div style="width:42px;height:42px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;">☰</div>';
+    html += '<div><p style="font-weight:600;font-size:15px;">Ver registros</p><p style="font-size:13px;color:var(--text2);margin-top:2px;">' + (S.loading?'Carregando...':recs.length+' registro'+(recs.length!==1?'s':'')+' no total') + '</p></div></button>';
+
+    const abertos = chamados.filter(ch=>ch.status==="aberto").length;
+    const emAndamento = chamados.filter(ch=>ch.status==="andamento").length;
+    const bColor = abertos>0 ? 'var(--danger)' : 'var(--border)';
+    const iBg = abertos>0 ? 'var(--danger-bg)' : emAndamento>0 ? 'var(--warning-bg)' : 'var(--bg2)';
+    html += '<button class="nav-btn" data-s="dashboard" style="padding:16px;border-radius:var(--radius-lg);text-align:left;width:100%;display:flex;align-items:center;gap:12px;background:var(--bg);border:0.5px solid var(--border);">';
+    html += '<div style="width:42px;height:42px;border-radius:10px;background:var(--success-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;">📊</div>';
+    html += '<div><p style="font-weight:600;font-size:15px;">Dashboard</p><p style="font-size:13px;color:var(--text2);margin-top:2px;">Métricas e relatórios da equipe</p></div></button>';
+    html += '<button class="nav-btn" data-s="knowledge" style="padding:16px;border-radius:var(--radius-lg);text-align:left;width:100%;display:flex;align-items:center;gap:12px;background:var(--bg);border:0.5px solid var(--border);">';
+    html += '<div style="width:42px;height:42px;border-radius:10px;background:var(--warning-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;">📚</div>';
+    html += '<div><p style="font-weight:600;font-size:15px;">Base de Conhecimento</p><p style="font-size:13px;color:var(--text2);margin-top:2px;">'+kbEntries.length+' registro'+(kbEntries.length!==1?'s':'')+' · Problemas e soluções</p></div></button>';
+    html += '<button class="nav-btn" data-s="chamados" style="padding:16px;border-radius:var(--radius-lg);text-align:left;width:100%;display:flex;align-items:center;gap:12px;background:var(--bg);border:0.5px solid '+bColor+';">';
+    html += '<div style="width:42px;height:42px;border-radius:10px;background:'+iBg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;">⚠️</div>';
+    html += '<div style="flex:1;"><p style="font-weight:600;font-size:15px;">Histórico de Problemas RICOMA</p><p style="font-size:13px;color:var(--text2);margin-top:2px;">' + chamados.length + ' chamado' + (chamados.length!==1?'s':'') + (abertos>0?' · '+abertos+' aberto'+(abertos>1?'s':''):'') + '</p></div>';
+    if (abertos>0) html += '<span style="font-size:18px;">🔴</span>';
+    else if (emAndamento>0) html += '<span style="font-size:18px;">🟡</span>';
+    html += '</button>';
+    html += '</div>';
+    html += '<button onclick="logout()" style="width:100%;padding:10px;border-radius:var(--radius);background:transparent;border:0.5px solid var(--border);color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer;">Sair da conta</button>';
+  if (recs.length > 0) {
+      html += '<div style="margin-top:1.5rem;"><p style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Recentes</p>';
+      recs.slice(0,3).forEach(r => {
+        html += '<div class="card" style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;">';
+        html += '<div><p style="font-weight:600;font-size:14px;">' + r.model + '</p>';
+        html += '<p style="font-size:12px;color:var(--text2);margin-top:2px;">' + r.mechanic + ' · ' + (CHECKLISTS[r.type]?.label||'') + '</p></div>';
+        html += '<p style="font-size:11px;color:var(--text3);">' + new Date(r.date).toLocaleDateString("pt-BR") + '</p></div>';
+      });
+      html += '</div>';
+    }
+  }
+
+  el.innerHTML = html;
+
+  // Rebind buttons inside results
+  el.querySelectorAll(".res-rec-btn").forEach(b => b.onclick = () => {
+    const r = S.records.find(r => r.id === b.dataset.rid);
+    if (r) { S.selected = r; S.screen = "detail"; render(); }
+  });
+  el.querySelectorAll(".nav-btn").forEach(b => b.onclick = () => {
+    S.screen = b.dataset.s;
+    if (S.screen === "new") { S.form = nf(); S.step = 0; S.expanded = {}; }
+    render();
+  });
+}
+
+function rHome(app) {
+  const recs = S.records;
+  const today = new Date().toDateString();
+  const tc = recs.filter(r => new Date(r.date).toDateString() === today).length;
+  const m = new Date();
+  const mc = recs.filter(r => { const d=new Date(r.date); return d.getMonth()===m.getMonth()&&d.getFullYear()===m.getFullYear(); }).length;
+  const q = (S.homeSearch||"").toLowerCase().trim();
+  const hits = q ? recs.filter(r => (r.model||"").toLowerCase().includes(q)||(r.serial||"").toLowerCase().includes(q)||(r.mechanic||"").toLowerCase().includes(q)) : [];
+
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const userName = currentUser ? currentUser.name : "";
+
+  const openChamados = chamados.filter(ch=>ch.status==="aberto").length;
+  const envioCount = recs.filter(r=>r.type==="envio").length;
+  const instalCount = recs.filter(r=>r.type==="instalacao").length;
+
+  let html = "";
+
+  // ── GREETING ──
+  html += '<div style="margin-bottom:1.5rem;">';
+  html += '<p style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:4px;">RICOMA · Assistência Técnica</p>';
+  html += '<h1 style="font-size:26px;font-weight:700;">' + greet + (userName?', '+userName:'') + ' 👋</h1>';
+  html += '</div>';
+
+  // ── ALERT (open chamados) ──
+  if (openChamados > 0) {
+    html += '<button class="alert-chamados-btn" style="width:100%;background:var(--danger-bg);border:1px solid var(--danger);border-radius:var(--radius-lg);padding:12px 16px;margin-bottom:1.25rem;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;">';
+    html += '<span style="font-size:24px;">🚨</span>';
+    html += '<div><p style="font-weight:600;font-size:14px;color:var(--danger);">' + openChamados + ' chamado' + (openChamados>1?'s':'') + ' aberto' + (openChamados>1?'s':'') + '</p>';
+    html += '<p style="font-size:12px;color:var(--danger);opacity:0.8;margin-top:1px;">Toque para ver os chamados pendentes</p></div>';
+    html += '<span style="margin-left:auto;font-size:18px;color:var(--danger);">›</span>';
+    html += '</button>';
+  }
+
+  // ── SEARCH ──
+  html += '<div style="position:relative;margin-bottom:1.5rem;">';
+  html += '<span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;">🔍</span>';
+  html += '<input id="home-search" placeholder="Buscar modelo, série ou técnico..." style="width:100%;padding:12px 36px 12px 38px;border-radius:var(--radius-lg);font-size:14px;border:0.5px solid var(--border);background:var(--bg2);" />';
+  html += '<button id="home-search-clear" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;color:var(--text3);padding:4px;cursor:pointer;display:none;">✕</button>';
+  html += '</div>';
+
+  if (q) {
+    // Search results
+    html += '<p style="font-size:12px;color:var(--text3);margin-bottom:8px;">' + hits.length + ' resultado' + (hits.length!==1?'s':'') + ' para "' + S.homeSearch + '"</p>';
+    if (hits.length === 0) {
+      html += '<div style="text-align:center;padding:3rem 1rem;color:var(--text2);border:0.5px dashed var(--border);border-radius:var(--radius-lg);">';
+      html += '<p style="font-size:28px;margin-bottom:8px;">🔎</p><p>Nenhum resultado encontrado.</p></div>';
+    } else {
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      hits.forEach(r => {
+        const ok=(CHECKLISTS[r.type]?.items||[]).filter(i=>r.items?.[i.id]==="ok").length;
+        const pr=(CHECKLISTS[r.type]?.items||[]).filter(i=>r.items?.[i.id]==="problema").length;
+        html += '<button class="rec-btn" data-rid="'+r.id+'" style="text-align:left;width:100%;padding:12px 14px;border-radius:var(--radius-lg);background:var(--bg);border:0.5px solid var(--border);">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+        html += '<div><div style="display:flex;align-items:center;gap:6px;"><p style="font-weight:600;font-size:14px;">'+r.model+'</p>';
+        if(r.protocol) html += '<span style="font-size:10px;font-weight:700;color:var(--info);background:var(--info-bg);padding:1px 7px;border-radius:99px;">'+r.protocol+'</span>';
+      else if(r.type==='envio') html += '<span style="font-size:10px;color:var(--text3);background:var(--bg2);padding:1px 7px;border-radius:99px;">Sem OS</span>';
+        html += '</div><p style="font-size:12px;color:var(--text2);margin-top:2px;">'+r.mechanic+(r.serial?' · S/N: '+r.serial:'')+'</p></div>';
+        html += '<p style="font-size:11px;color:var(--text3);">'+new Date(r.date).toLocaleDateString("pt-BR")+'</p></div>';
+        html += '<div style="display:flex;gap:6px;margin-top:6px;">';
+        html += '<span class="pill" style="background:var(--success-bg);color:var(--success);">'+ok+' OK</span>';
+        if(pr>0) html += '<span class="pill" style="background:var(--danger-bg);color:var(--danger);">'+pr+' prob.</span>';
+        html += '</div></button>';
+      });
+      html += '</div>';
+    }
+  } else {
+    // ── STATS ROW ──
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1.5rem;">';
+    html += statCard("📅", tc, "Hoje");
+    html += statCard("📆", mc, "Este mês");
+    html += statCard("📊", recs.length, "Total");
+    html += '</div>';
+
+    // ── QUICK ACTIONS ──
+    html += '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:10px;">Ações rápidas</p>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;">';
+
+    html += actionCard("📦", "Nova Preparação", "Máquina para envio", "var(--info-bg)", "var(--info)", "new-envio");
+    html += actionCard("🔧", "Nova Instalação", "Checklist no cliente", "var(--success-bg)", "var(--success)", "new-instalacao");
+    html += actionCard("📋", "Registros", envioCount+" preparação"+(envioCount!==1?"s":"")+" · "+instalCount+" instalação"+(instalCount!==1?"ões":""), "var(--bg2)", "var(--text2)", "records");
+    html += actionCard("⚠️", "Chamados", openChamados>0?openChamados+" aberto"+(openChamados>1?"s":""):"Nenhum aberto", openChamados>0?"var(--danger-bg)":"var(--bg2)", openChamados>0?"var(--danger)":"var(--text2)", "chamados");
+
+    html += '</div>';
+
+    // ── RECENT ACTIVITY ──
+    if (recs.length > 0) {
+      html += '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:10px;">Atividade recente</p>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      recs.slice(0,4).forEach(r => {
+        const isEnvio = r.type === "envio";
+        const icon = isEnvio ? "📦" : "🔧";
+        const bgColor = isEnvio ? "var(--info-bg)" : "var(--success-bg)";
+        const textColor = isEnvio ? "var(--info)" : "var(--success)";
+        html += '<button class="rec-btn" data-rid="'+r.id+'" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:var(--radius-lg);background:var(--bg);border:0.5px solid var(--border);cursor:pointer;">';
+        html += '<div style="width:38px;height:38px;border-radius:9px;background:'+bgColor+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">'+icon+'</div>';
+        html += '<div style="flex:1;min-width:0;">';
+        html += '<div style="display:flex;align-items:center;gap:5px;">';
+        html += '<p style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+r.model+'</p>';
+        if(r.protocol) html += '<span style="font-size:10px;font-weight:700;color:'+textColor+';background:'+bgColor+';padding:1px 6px;border-radius:99px;flex-shrink:0;">'+r.protocol+'</span>';
+        html += '</div>';
+        html += '<p style="font-size:12px;color:var(--text2);margin-top:1px;">'+r.mechanic+(r.serial?' · '+r.serial:'')+'</p>';
+        html += '</div>';
+        html += '<p style="font-size:11px;color:var(--text3);flex-shrink:0;">'+new Date(r.date).toLocaleDateString("pt-BR")+'</p>';
+        html += '</button>';
+      });
+      html += '</div>';
+    }
+
+    // Logout
+    html += '<button onclick="logout()" style="width:100%;padding:10px;border-radius:var(--radius);background:transparent;border:0.5px solid var(--border);color:var(--text3);font-size:13px;margin-top:1.5rem;cursor:pointer;">Sair da conta</button>';
+  }
+
+  app.innerHTML = html;
+
+  // Search binds
+  const inp = document.getElementById("home-search");
+  if (inp) {
+    inp.value = S.homeSearch || "";
+    inp.oninput = e => {
+      S.homeSearch = e.target.value;
+      const clr = document.getElementById("home-search-clear");
+      if (clr) clr.style.display = e.target.value ? "block" : "none";
+      updateHomeResults();
+    };
+  }
+  const clr = document.getElementById("home-search-clear");
+  if (clr) clr.onclick = () => { S.homeSearch=""; inp.value=""; clr.style.display="none"; updateHomeResults(); };
+
+  // Action card binds
+  document.querySelectorAll(".action-card-btn").forEach(b => b.onclick = () => {
+    const action = b.dataset.action;
+    if (action === "new-envio") { S.form=nf(); S.form.type="envio"; S.step=0; S.expanded={}; S.screen="new"; render(); }
+    else if (action === "new-instalacao") { S.form=nf(); S.form.type="instalacao"; S.step=0; S.expanded={}; S.screen="new"; render(); }
+    else { S.screen=action; render(); }
+  });
+
+  // Alert banner
+  document.querySelectorAll(".alert-chamados-btn").forEach(b => {
+    b.onclick = () => { S.screen="chamados"; render(); };
+  });
+
+  // Rec buttons
+  document.querySelectorAll(".rec-btn").forEach(b => b.onclick = () => {
+    const r = S.records.find(r=>r.id===b.dataset.rid);
+    if (r) { S.selected=r; S.screen="detail"; render(); }
+  });
+}
+
+function statCard(icon, value, label) {
+  return '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:12px 10px;text-align:center;">' +
+    '<p style="font-size:18px;margin-bottom:2px;">'+icon+'</p>' +
+    '<p style="font-size:22px;font-weight:700;">'+value+'</p>' +
+    '<p style="font-size:11px;color:var(--text3);margin-top:2px;">'+label+'</p>' +
+    '</div>';
+}
+
+function actionCard(icon, title, subtitle, bg, color, action) {
+  return '<button class="action-card-btn" data-action="'+action+'" style="background:'+bg+';border-radius:var(--radius-lg);padding:16px 14px;text-align:left;border:none;cursor:pointer;width:100%;">' +
+    '<p style="font-size:26px;margin-bottom:8px;">'+icon+'</p>' +
+    '<p style="font-weight:600;font-size:14px;color:'+color+';">'+title+'</p>' +
+    '<p style="font-size:12px;color:'+color+';opacity:0.75;margin-top:3px;">'+subtitle+'</p>' +
+    '</button>';
+}
+
+function navHome(screen) { S.screen=screen; render(); }
+
+function rStep0(app) {
+  const w=hdr(app,"Novo checklist","home"), f=S.form;
+  w.insertAdjacentHTML("beforeend",`
+<div style="display:flex;flex-direction:column;gap:14px;">
+  <div>
+    <span class="lbl">Tipo de checklist</span>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${Object.entries(CHECKLISTS).map(([k,v])=>`<button class="type-btn" data-type="${k}" style="padding:12px 14px;border-radius:var(--radius);text-align:left;width:100%;font-size:14px;font-weight:${f.type===k?"600":"400"};border:${f.type===k?"2px solid var(--info)":"0.5px solid var(--border)"};background:${f.type===k?"var(--info-bg)":"var(--bg)"};color:${f.type===k?"var(--info)":"var(--text)"};">${v.label}</button>`).join("")}
+    </div>
+  </div>
+  <div>
+    <span class="lbl">Mecânico responsável</span>
+    <div style="display:flex;gap:6px;">
+      ${MECHANICS.map(m=>`<button class="mec-btn" data-mec="${m}" style="flex:1;padding:10px 4px;border-radius:var(--radius);font-size:13px;font-weight:${f.mechanic===m?"600":"400"};border:${f.mechanic===m?"2px solid var(--info)":"0.5px solid var(--border)"};background:${f.mechanic===m?"var(--info-bg)":"var(--bg)"};color:${f.mechanic===m?"var(--info)":"var(--text)"};">${m}</button>`).join("")}
+    </div>
+  </div>
+  <!-- Protocol preview - only for instalacao -->
+  ${f.type === 'instalacao' ? `<div style="background:var(--info-bg);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+    <span style="font-size:18px;">🔧</span>
+    <div>
+      <p style="font-size:11px;color:var(--text3);">Ordem de Serviço</p>
+      <p style="font-size:16px;font-weight:700;color:var(--info);">${generateProtocol(f.type)}</p>
+    </div>
+  </div>` : ''}
+
+  <!-- For instalacao: link to a preparation record -->
+  ${f.type === 'instalacao' ? (() => {
+    // Show all envio records NOT already linked to an instalacao
+    const prepRecs = S.records.filter(r =>
+      r.type === 'envio' &&
+      r.serial &&
+      !getInstalacaoForSerial(r.serial)
+    );
+    if (prepRecs.length === 0) return '<p style="font-size:13px;color:var(--text3);padding:8px;background:var(--bg2);border-radius:var(--radius);">Nenhuma máquina preparada encontrada para vincular.</p>';
+    return '<div><span class="lbl">Vincular à máquina preparada (opcional)</span>' +
+      '<select id="link-prep-select" style="width:100%;padding:10px 12px;border-radius:var(--radius);background:var(--bg2);border:0.5px solid var(--border);font-size:14px;">' +
+      '<option value="">— Selecionar máquina preparada —</option>' +
+      prepRecs.map(r => '<option value="' + r.id + '" ' + (f.linkedRecordId===r.id?'selected':'') + '>' + r.model + ' · S/N: ' + r.serial + ' · ' + new Date(r.date).toLocaleDateString("pt-BR") + '</option>').join('') +
+      '</select></div>';
+  })() : ''}
+
+  <div>
+    <span class="lbl">Modelo da máquina</span>
+    <select id="inp-model-select" style="width:100%;padding:10px 12px;border-radius:var(--radius);background:var(--bg2);border:0.5px solid var(--border);font-size:14px;color:var(--text);margin-bottom:6px;">
+      <option value="">— Selecionar modelo —</option>
+      ${MACHINE_MODELS.map(m => '<option value="'+m+'"'+(f.model===m?' selected':'')+'>RICOMA '+m+'</option>').join('')}
+      <option value="__outro__"${!MACHINE_MODELS.includes(f.model)&&f.model?'selected':''}>Outro (digitar manualmente)</option>
+    </select>
+    ${(!MACHINE_MODELS.includes(f.model) || f.model === '__outro__') ? '<input id="inp-model" placeholder="Digite o modelo manualmente..." value="'+(f.model==='__outro__'?'':f.model||'')+'" style="width:100%;" />' : '<input id="inp-model" type="hidden" value="'+f.model+'" />'}
+  </div>
+  <div>
+    <span class="lbl">Número de série <span style="color:var(--danger);">*</span></span>
+    <input id="inp-serial" placeholder="Obrigatório — Ex: SN-202401-001" value="${f.serial}" />
+    <div id="serial-warn-box"></div>
+  </div>
+  <button id="btn-start" style="padding:14px;border-radius:var(--radius);background:var(--info-bg);border:none;color:var(--info);font-weight:600;font-size:15px;margin-top:4px;">Iniciar checklist →</button>
+</div>`);
+}
+
+function buildSigHtml(f) {
+  if (f.type !== 'instalacao') return '';
+  let s = '<div style="margin-top:1.25rem;border:0.5px solid ' + (f.clientSignature?'var(--success)':'var(--border)') + ';border-radius:var(--radius-lg);overflow:hidden;">';
+  s += '<div style="padding:12px 16px;background:' + (f.clientSignature?'var(--success-bg)':'var(--bg2)') + ';display:flex;align-items:center;justify-content:space-between;">';
+  s += '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:20px;">✍️</span>';
+  s += '<div><p style="font-weight:600;font-size:14px;">Assinatura do Cliente</p>';
+  s += '<p style="font-size:12px;color:var(--text3);">Confirma recebimento e instalação</p></div></div>';
+  s += f.clientSignature
+    ? '<span style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--success);color:#fff;font-weight:600;">✓ Assinado</span>'
+    : '<span style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--warning-bg);color:var(--warning);font-weight:600;">Pendente</span>';
+  s += '</div>';
+  s += '<div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">';
+  s += '<div><label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px;">Nome do cliente</label>';
+  s += '<input id="client-name-input" placeholder="Nome completo do cliente..." value="' + (f.clientName||'') + '" style="width:100%;" /></div>';
+  if (f.clientSignature) {
+    s += '<div style="position:relative;">';
+    s += '<img src="' + f.clientSignature + '" style="width:100%;border-radius:8px;border:0.5px solid var(--border);background:#fff;max-height:180px;object-fit:contain;" />';
+    s += '<button id="clear-sig-btn" style="position:absolute;top:8px;right:8px;padding:5px 12px;border-radius:var(--radius);background:var(--danger-bg);border:none;color:var(--danger);font-size:12px;font-weight:600;cursor:pointer;">🗑️ Refazer</button>';
+    s += '</div>';
+  } else {
+    s += '<button id="open-sig-btn" style="width:100%;padding:16px;border-radius:var(--radius-lg);background:var(--info-bg);border:2px dashed var(--info);color:var(--info);font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">✍️ Toque aqui para assinar</button>';
+  }
+  s += '</div></div>';
+  return s;
+}
+
+function rStep1(app) {
+  const w=hdr(app,CHECKLISTS[S.form.type].label,"step0"), f=S.form;
+  const items=CHECKLISTS[f.type].items, cc=items.filter(i=>f.items[i.id]).length, prog=Math.round(cc/items.length*100);
+  const cp=f.compPhotos||[];
+  let html=`
+<div style="margin-bottom:1rem;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+    <span style="font-size:13px;color:var(--text2);">${cc}/${items.length} verificados</span>
+    <span style="font-size:13px;font-weight:600;">${prog}%</span>
+  </div>
+  <div style="height:4px;background:var(--bg2);border-radius:2px;"><div style="height:4px;width:${prog}%;background:var(--success);border-radius:2px;"></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">`;
+
+  items.forEach((item,idx)=>{
+    const st=f.items[item.id], note=f.notes[item.id]||"", photo=f.photos[item.id], exp=!!S.expanded[item.id];
+    html+=`
+<div style="border:0.5px solid ${st==="problema"?"var(--danger)":"var(--border)"};border-radius:var(--radius);overflow:hidden;">
+  <div class="item-hdr" data-id="${item.id}" style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;background:${sb(st)};">
+    <span style="font-size:11px;color:${sc(st)};min-width:18px;font-weight:600;">${idx+1}</span>
+    <span style="flex:1;font-size:14px;font-weight:500;color:${st?"":""};color:${sc(st)||"var(--text)"};">${item.label}</span>
+    <span style="font-size:18px;color:${sc(st)};font-weight:600;">${si(st)}</span>
+  </div>
+  ${exp?`<div style="padding:12px 14px;border-top:0.5px solid var(--border);">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:10px;">${item.detail}</p>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button class="st-btn" data-id="${item.id}" data-val="ok" style="flex:1;padding:8px 4px;border-radius:var(--radius);border:${st==="ok"?"2px solid var(--success)":"0.5px solid var(--border)"};background:${st==="ok"?"var(--success-bg)":"var(--bg)"};font-size:12px;font-weight:${st==="ok"?"600":"400"};color:var(--success);">✓ OK</button>
+      <button class="st-btn" data-id="${item.id}" data-val="problema" style="flex:1;padding:8px 4px;border-radius:var(--radius);border:${st==="problema"?"2px solid var(--danger)":"0.5px solid var(--border)"};background:${st==="problema"?"var(--danger-bg)":"var(--bg)"};font-size:12px;font-weight:${st==="problema"?"600":"400"};color:var(--danger);">✕ Problema</button>
+      <button class="st-btn" data-id="${item.id}" data-val="na" style="flex:1;padding:8px 4px;border-radius:var(--radius);border:${st==="na"?"2px solid var(--border2)":"0.5px solid var(--border)"};background:${st==="na"?"var(--bg2)":"var(--bg)"};font-size:12px;font-weight:${st==="na"?"600":"400"};color:var(--text2);">— N/A</button>
+    </div>
+    <textarea class="ni" data-id="${item.id}" placeholder="Observação (opcional)..." style="min-height:60px;font-size:13px;margin-bottom:8px;">${note}</textarea>
+    <input type="file" accept="image/*" capture="environment" class="pi" data-id="${item.id}" style="display:none;" />
+    ${photo?`<div style="position:relative;"><img src="${photo}" alt="Foto" onclick="openLightbox(this.src,'${item.label}')" style="width:100%;border-radius:6px;max-height:160px;object-fit:cover;cursor:zoom-in;" /><button class="ph-chg" data-id="${item.id}" style="position:absolute;bottom:6px;right:6px;padding:4px 10px;font-size:11px;background:var(--bg);border-radius:4px;">Trocar foto</button></div>`:`<button class="ph-add" data-id="${item.id}" style="width:100%;padding:10px;border-radius:var(--radius);border:0.5px dashed var(--border2);background:transparent;font-size:13px;color:var(--text2);">📷 Adicionar foto</button>`}
+  </div>`:""}
+</div>`;
+  });
+
+  html+=`</div>
+<div style="margin-top:1.5rem;"><span class="lbl">Observações gerais</span><textarea id="obs" placeholder="Observações adicionais sobre a máquina..." style="min-height:80px;">${f.observation}</textarea></div>
+
+<div style="margin-top:1.25rem;border:0.5px dashed var(--border2);border-radius:var(--radius-lg);padding:14px 16px;">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+    <span style="font-size:16px;">📎</span>
+    <p style="font-size:14px;font-weight:600;">Complemento</p>
+    <span class="pill" style="background:var(--bg2);color:var(--text2);">opcional</span>
+  </div>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Informações extras, fotos adicionais, detalhes que não se encaixam nos itens acima.</p>
+  <textarea id="comp-note" placeholder="Anotações complementares..." style="min-height:70px;font-size:13px;margin-bottom:10px;">${f.compNote||""}</textarea>
+  <div id="comp-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+    ${cp.map((p,i)=>`<div style="position:relative;"><img src="${p}" alt="Foto ${i+1}" onclick="openLightbox(this.src,'Foto complemento ${i+1}')" style="width:100%;border-radius:6px;max-height:140px;object-fit:cover;cursor:zoom-in;" /><button class="comp-rm" data-idx="${i}" style="position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:var(--danger-bg);border:none;color:var(--danger);font-size:16px;padding:0;display:flex;align-items:center;justify-content:center;">✕</button><span style="position:absolute;bottom:6px;left:8px;font-size:11px;color:#fff;background:rgba(0,0,0,0.5);padding:2px 6px;border-radius:4px;">Foto ${i+1}</span></div>`).join("")}
+  </div>
+  <input type="file" accept="image/*" capture="environment" id="comp-pi" style="display:none;" />
+  <button id="comp-add" style="width:100%;padding:10px;border-radius:var(--radius);border:0.5px dashed var(--border2);background:transparent;font-size:13px;color:var(--text2);">
+    📷 ${cp.length>0?"Adicionar mais uma foto":"Adicionar foto"}${cp.length>0?` <span class="pill" style="background:var(--info-bg);color:var(--info);margin-left:4px;">${cp.length}</span>`:""}
+  </button>
+</div>
+
+${buildSigHtml(S.form)}
+
+<button id="btn-finish" style="padding:14px;border-radius:var(--radius);background:var(--success-bg);border:none;color:var(--success);font-weight:600;font-size:15px;width:100%;margin-top:1.25rem;">Revisar e finalizar →</button>`;
+  w.insertAdjacentHTML("beforeend",html);
+}
+
+function rStep2(app) {
+  const w=hdr(app,S.screen==="edit"?"Confirmar edição":"Confirmar e salvar","step1"), f=S.form;
+  const items=CHECKLISTS[f.type].items;
+  const ok=items.filter(i=>f.items[i.id]==="ok"), prob=items.filter(i=>f.items[i.id]==="problema");
+  const na=items.filter(i=>f.items[i.id]==="na"), unc=items.filter(i=>!f.items[i.id]);
+  const cp=f.compPhotos||[];
+  w.insertAdjacentHTML("beforeend",`
+<div style="display:flex;flex-direction:column;gap:14px;">
+  <div class="surface" style="border-radius:var(--radius-lg);padding:14px 16px;">
+    <p style="font-weight:700;font-size:16px;">${f.model}</p>
+    ${f.serial?`<p style="font-size:13px;color:var(--text2);margin-top:2px;">S/N: ${f.serial}</p>`:""}
+    <p style="font-size:13px;color:var(--text2);margin-top:6px;">Mecânico: ${f.mechanic} · ${CHECKLISTS[f.type].label}</p>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div class="surface" style="background:var(--success-bg);"><p style="font-size:11px;color:var(--success);">OK</p><p style="font-size:22px;font-weight:700;color:var(--success);">${ok.length}</p></div>
+    <div class="surface" style="background:var(--danger-bg);"><p style="font-size:11px;color:var(--danger);">Problema</p><p style="font-size:22px;font-weight:700;color:var(--danger);">${prob.length}</p></div>
+    <div class="surface"><p style="font-size:11px;color:var(--text2);">N/A</p><p style="font-size:22px;font-weight:700;color:var(--text2);">${na.length}</p></div>
+    <div class="surface" style="background:var(--warning-bg);"><p style="font-size:11px;color:var(--warning);">Não verificado</p><p style="font-size:22px;font-weight:700;color:var(--warning);">${unc.length}</p></div>
+  </div>
+  ${prob.length>0?`<div style="background:var(--danger-bg);border-radius:var(--radius);padding:12px 14px;"><p style="font-weight:600;font-size:13px;color:var(--danger);margin-bottom:8px;">⚠ Itens com problema</p>${prob.map(p=>`<p style="font-size:13px;color:var(--danger);margin-bottom:2px;">· ${p.label}</p>`).join("")}</div>`:""}
+  ${(f.compNote||cp.length>0)?`<div class="card"><p style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Complemento</p>${f.compNote?`<p style="font-size:13px;margin-bottom:6px;">${f.compNote}</p>`:""}${cp.length>0?`<p style="font-size:12px;color:var(--text2);">📎 ${cp.length} foto(s) complementar(es)</p>`:""}
+  </div>`:""}
+  ${f.clientSignature?`<div class="card">
+    <p style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">✍️ Assinatura do cliente</p>
+    ${f.clientName?`<p style="font-size:13px;font-weight:600;margin-bottom:8px;">${f.clientName}</p>`:""}
+    <img src="${f.clientSignature}" style="width:100%;border-radius:6px;border:0.5px solid var(--border);" />
+  </div>`:""}
+  ${S.screen==="edit" && S.editingRecord ? (()=>{
+    const diff = generateDiff(S.editingRecord, S.form);
+    return `<div style="background:var(--bg2);border-radius:var(--radius);padding:12px 14px;">
+      <p style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Alterações detectadas</p>
+      ${diff.length > 0 ? diff.map(d=>`<p style="font-size:13px;color:var(--text2);margin-bottom:3px;">· ${d}</p>`).join("") : '<p style="font-size:13px;color:var(--text2);">Nenhuma alteração.</p>'}
+    </div>`;
+  })() : ""}
+  <button id="btn-save" style="padding:14px;border-radius:var(--radius);background:var(--info-bg);border:none;color:var(--info);font-weight:600;font-size:15px;width:100%;">
+    ${S.saving?"Salvando…":S.screen==="edit"?"💾 Salvar edição":"💾 Salvar registro"}
+  </button>
+</div>`);
+}
+
+function rRecords(app) {
+  const w = hdr(app, "Registros", "home");
+  if (!S.recordsTab) S.recordsTab = "envio";
+  const tab = S.recordsTab;
+  const recs = S.records.filter(r => r.type === tab);
+
+  // Tabs
+  let html = '<div style="display:flex;gap:6px;margin-bottom:14px;">';
+  Object.entries(CHECKLISTS).forEach(([k, v]) => {
+    const count = S.records.filter(r => r.type === k).length;
+    const active = tab === k;
+    const short = v.label.replace("Preparação para ","").replace("Checklist de ","");
+    html += '<button class="rec-tab-btn" data-tab="'+k+'" style="flex:1;padding:9px 6px;border-radius:var(--radius);font-size:12px;font-weight:'+(active?"600":"400")+';border:'+(active?"2px solid var(--info)":"0.5px solid var(--border)")+';background:'+(active?"var(--info-bg)":"var(--bg)")+';color:'+(active?"var(--info)":"var(--text2)")+';text-align:center;">';
+    html += short + '<br><span style="font-size:11px;opacity:0.8;">'+count+' reg.</span>';
+    html += '</button>';
+  });
+  html += '</div>';
+
+  if (S.loading) {
+    html += '<p style="color:var(--text2);text-align:center;padding:2rem;">Carregando...</p>';
+  } else if (recs.length === 0) {
+    html += '<div style="text-align:center;padding:3rem 1rem;color:var(--text2);">';
+    html += '<p style="font-size:32px;margin-bottom:12px;">📋</p>';
+    html += '<p>Nenhum registro de '+CHECKLISTS[tab]?.label+'.</p>';
+    html += '</div>';
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    recs.forEach(r => {
+      const ok = (CHECKLISTS[r.type]?.items||[]).filter(i=>r.items?.[i.id]==="ok").length;
+      const pr = (CHECKLISTS[r.type]?.items||[]).filter(i=>r.items?.[i.id]==="problema").length;
+      const cp = (r.compPhotos||[]).length;
+      html += '<button class="rec-btn" data-rid="'+r.id+'" style="text-align:left;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;cursor:pointer;width:100%;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+      const isBlocked = r.type==="envio" && r.serial && isSerialBlocked(r.serial);
+      const isFinished = r.type==="instalacao";
+      html += '<div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><p style="font-weight:600;font-size:14px;">'+r.model+'</p>';
+      if(r.protocol) html += '<span style="font-size:10px;font-weight:700;color:var(--info);background:var(--info-bg);padding:1px 7px;border-radius:99px;">'+r.protocol+'</span>';
+      else if(r.type==='envio') html += '<span style="font-size:10px;color:var(--text3);background:var(--bg2);padding:1px 7px;border-radius:99px;">Sem OS</span>';
+      if(isFinished) html += '<span style="font-size:10px;font-weight:700;color:var(--success);background:var(--success-bg);padding:1px 7px;border-radius:99px;">✅ Finalizada</span>';
+      else if(isBlocked) html += '<span style="font-size:10px;font-weight:700;color:var(--success);background:var(--success-bg);padding:1px 7px;border-radius:99px;">✓ Instalada</span>';
+      html += '</div><p style="font-size:12px;color:var(--text2);margin-top:2px;">'+r.mechanic;
+      if (r.serial) html += ' · S/N: '+r.serial;
+      html += '</p></div>';
+      html += '<p style="font-size:11px;color:var(--text3);text-align:right;">'+new Date(r.date).toLocaleDateString("pt-BR")+'<br>'+new Date(r.date).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+'</p>';
+      html += '</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">';
+      html += '<span class="pill" style="background:var(--success-bg);color:var(--success);">'+ok+' OK</span>';
+      if (pr>0) html += '<span class="pill" style="background:var(--danger-bg);color:var(--danger);">'+pr+' prob.</span>';
+      if (cp>0) html += '<span class="pill" style="background:var(--bg2);color:var(--text2);">📎 '+cp+'</span>';
+      html += '</div></button>';
+    });
+    html += '</div>';
+  }
+
+  w.insertAdjacentHTML("beforeend", html);
+
+  // Bind tabs
+  document.querySelectorAll(".rec-tab-btn").forEach(b => b.onclick = () => {
+    S.recordsTab = b.dataset.tab;
+    render();
+  });
+}
+
+function rDetail(app) {
+  const r=S.selected; if(!r)return;
+  const w=hdr(app,"Detalhes","records"), cl=CHECKLISTS[r.type], cp=r.compPhotos||[];
+  let html=`
+<div class="surface" style="border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1rem;">
+  <p style="font-weight:700;font-size:16px;">${r.model}</p>
+  ${r.serial?`<p style="font-size:13px;color:var(--text2);margin-top:2px;">S/N: ${r.serial}</p>`:""}
+  <p style="font-size:13px;color:var(--text2);margin-top:6px;">Mecânico: ${r.mechanic} · ${cl?.label}</p>
+  <p style="font-size:12px;color:var(--text3);margin-top:4px;">${fmtDate(r.date)}</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;">`;
+  (cl?.items||[]).forEach((item,idx)=>{
+    const st=r.items?.[item.id], note=r.notes?.[item.id], photo=r.photos?.[item.id];
+    html+=`<div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+      <div style="padding:10px 14px;background:${sb(st)};display:flex;gap:10px;align-items:center;">
+        <span style="font-size:11px;color:${sc(st)};min-width:18px;font-weight:600;">${idx+1}</span>
+        <span style="flex:1;font-size:13px;color:${sc(st)||"var(--text)"};">${item.label}</span>
+        <span style="font-size:12px;color:${sc(st)};font-weight:600;white-space:nowrap;">${si(st)} ${sl(st)}</span>
+      </div>
+      ${(note||photo)?`<div style="padding:8px 14px;border-top:0.5px solid var(--border);">${note?`<p style="font-size:13px;color:var(--text2);">${note}</p>`:""}${photo?`<img src="${photo}" alt="Foto" onclick="openLightbox(this.src,'${item.label}')" style="margin-top:6px;width:100%;border-radius:8px;max-height:180px;object-fit:cover;cursor:zoom-in;border:0.5px solid var(--border);" />`:""}
+      </div>`:""}
+    </div>`;
+  });
+  html+=`</div>`;
+  if(r.observation) html+=`<div class="surface" style="margin-top:1rem;"><p style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">Observações</p><p style="font-size:14px;">${r.observation}</p></div>`;
+  if(r.clientSignature) html+=`<div class="card" style="margin-top:1rem;"><p style="font-size:11px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">✍️ Assinatura do Cliente</p>${r.clientName?`<p style="font-size:14px;font-weight:600;margin-bottom:8px;">${r.clientName}</p>`:""}<img src="${r.clientSignature}" style="width:100%;border-radius:6px;border:0.5px solid var(--border);" /></div>`;
+  if(r.compNote||cp.length>0) {
+    html+=`<div class="card" style="margin-top:1rem;">
+      <p style="font-size:14px;font-weight:600;margin-bottom:10px;">📎 Complemento</p>
+      ${r.compNote?`<p style="font-size:13px;margin-bottom:10px;">${r.compNote}</p>`:""}
+      ${cp.map((p,i)=>`<div style="margin-bottom:8px;position:relative;"><img src="${p}" alt="Complemento ${i+1}" onclick="openLightbox(this.src,'Foto complemento ${i+1}')" style="width:100%;border-radius:6px;max-height:140px;object-fit:cover;cursor:zoom-in;" /><span style="position:absolute;bottom:6px;left:8px;font-size:11px;color:#fff;background:rgba(0,0,0,0.5);padding:2px 6px;border-radius:4px;">Foto ${i+1}</span></div>`).join("")}
+    </div>`;
+  }
+  html += `
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:1.5rem;padding-top:1rem;border-top:0.5px solid var(--border);">
+  <button class="pdf-btn" style="padding:13px;border-radius:var(--radius);background:var(--success-bg);border:none;color:var(--success);font-weight:600;font-size:14px;width:100%;">📄 Gerar relatório PDF</button>
+  <button class="edit-btn" style="padding:13px;border-radius:var(--radius);background:var(--info-bg);border:none;color:var(--info);font-weight:600;font-size:14px;width:100%;">✏️ Editar registro</button>
+  <div style="display:flex;gap:8px;">
+    <button class="hist-btn" style="flex:1;padding:13px;border-radius:var(--radius);background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);font-weight:600;font-size:14px;">🕓 Histórico</button>
+    <button class="del-btn" style="flex:1;padding:13px;border-radius:var(--radius);background:var(--danger-bg);border:none;color:var(--danger);font-weight:600;font-size:14px;">🗑️ Excluir</button>
+  </div>
+</div>`;
+  w.insertAdjacentHTML("beforeend",html);
+}
+
+function rHistory(app) {
+  const r = S.selected; if(!r) return;
+  const w = hdr(app,"Histórico de edições","detail");
+  const hist = r.editHistory||[];
+  let html = "";
+  if (hist.length === 0) {
+    html = `<div style="text-align:center;padding:3rem 1rem;color:var(--text2);">
+      <p style="font-size:32px;margin-bottom:12px;">📋</p>
+      <p>Nenhuma edição registrada.</p>
+    </div>`;
+  } else {
+    html = `<div style="display:flex;flex-direction:column;gap:12px;">`;
+    [...hist].reverse().forEach((h,i) => {
+      html += `<div class="card" style="border-radius:var(--radius-lg);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <p style="font-weight:600;font-size:14px;">${h.mechanic}</p>
+            <p style="font-size:12px;color:var(--text3);margin-top:2px;">${fmtDate(h.date)}</p>
+          </div>
+          <span style="font-size:11px;padding:2px 8px;border-radius:99px;background:var(--bg2);color:var(--text2);">Edição ${hist.length - i}</span>
+        </div>
+        <div style="border-top:0.5px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+          ${h.changes.map(c=>`<p style="font-size:13px;color:var(--text2);">· ${c}</p>`).join("")}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  w.insertAdjacentHTML("beforeend", html);
+}
+
+// ── EVENTOS ──────────────────────────────────────────────
+function filterChamadoMachines(q) {
+  const list = document.getElementById("ch-machine-list");
+  if (!list) return;
+  const term = (q||"").toLowerCase().trim();
+  list.querySelectorAll(".ch-machine-btn").forEach(btn => {
+    const serial = (btn.dataset.serial||"").toLowerCase();
+    const model = (btn.dataset.model||"").toLowerCase();
+    btn.style.display = (!term || serial.includes(term) || model.includes(term)) ? "" : "none";
+  });
+}
+
+function updateSerialWarning(serial) {
+  const f = S.form;
+  const warn = document.getElementById("serial-warn-box");
+  const btn = document.getElementById("btn-start");
+  if (!warn || !btn) return;
+
+  let blocked = false;
+  let warnHtml = "";
+
+  if (serial && serial.trim()) {
+    if (f.type === "envio") {
+      const ir = getInstalacaoForSerial(serial);
+      if (ir) {
+        blocked = true;
+        warnHtml = '<div style="margin-top:6px;background:var(--danger-bg);border-radius:var(--radius);padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">🔒</span><div><p style="font-size:12px;font-weight:600;color:var(--danger);">Série bloqueada — Máquina instalada</p><p style="font-size:11px;color:var(--danger);opacity:0.8;margin-top:1px;">Vinculada à ' + (ir.protocol||'instalação') + '. Esta máquina já foi vendida.</p></div></div>';
+      } else if (isSerialDuplicatePrep(serial, "")) {
+        blocked = true;
+        warnHtml = '<div style="margin-top:6px;background:var(--warning-bg);border-radius:var(--radius);padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">⚠️</span><div><p style="font-size:12px;font-weight:600;color:var(--warning);">Número de série duplicado</p><p style="font-size:11px;color:var(--warning);opacity:0.8;margin-top:1px;">Já existe uma preparação com este número de série.</p></div></div>';
+      }
+    } else if (f.type === "instalacao") {
+      const ir = getInstalacaoForSerial(serial);
+      if (ir) {
+        blocked = true;
+        warnHtml = '<div style="margin-top:6px;background:var(--danger-bg);border-radius:var(--radius);padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">🔒</span><div><p style="font-size:12px;font-weight:600;color:var(--danger);">Máquina já instalada</p><p style="font-size:11px;color:var(--danger);opacity:0.8;margin-top:1px;">Já está vinculada à ' + (ir.protocol||'instalação anterior') + '.</p></div></div>';
+      }
+    }
+  }
+
+  warn.innerHTML = warnHtml;
+
+  if (blocked) {
+    btn.textContent = "🔒 Bloqueado — não é possível continuar";
+    btn.style.background = "var(--bg2)";
+    btn.style.color = "var(--text3)";
+    btn.style.cursor = "not-allowed";
+    btn.style.opacity = "0.5";
+  } else {
+    btn.textContent = "Iniciar checklist →";
+    btn.style.background = "var(--info-bg)";
+    btn.style.color = "var(--info)";
+    btn.style.cursor = "pointer";
+    btn.style.opacity = "1";
+  }
+}
+
+function bind() {
+  document.querySelectorAll(".back-btn").forEach(b=>b.onclick=()=>{
+    const t=b.dataset.t;
+    if(t==="home")         S.screen="home";
+    else if(t==="records")     S.screen="records";
+    else if(t==="step0")      { S.step=0; S.expanded={}; }
+    else if(t==="step1")      S.step=1;
+    else if(t==="chamados")    S.screen="chamados";
+    else if(t==="chamado_new") S.screen="chamado_new";
+    else if(t==="dashboard")   S.screen="dashboard";
+    else if(t==="detail")      S.screen="detail";
+    render();
+  });
+  document.querySelectorAll(".nav-btn").forEach(b=>b.onclick=()=>{
+    S.screen=b.dataset.s;
+    if(S.screen==="new") { S.form=nf(); S.step=0; S.expanded={}; }
+    if(S.screen!=="records") S.search="";
+    render();
+  });
+  document.querySelectorAll(".type-btn").forEach(b=>b.onclick=()=>{S.form.type=b.dataset.type;render();});
+  document.querySelectorAll(".mec-btn").forEach(b=>b.onclick=()=>{S.form.mechanic=b.dataset.mec;render();});
+  const imSel=document.getElementById("inp-model-select");
+  if(imSel) imSel.onchange=e=>{
+    const val=e.target.value;
+    if(val==="__outro__"){S.form.model="__outro__";}
+    else if(val){S.form.model="RICOMA "+val;}
+    else{S.form.model="";}
+    render();
+  };
+  const im=document.getElementById("inp-model"); if(im)im.oninput=e=>S.form.model=e.target.value;
+  const is=document.getElementById("inp-serial");
+  if(is) is.oninput=e=>{
+    S.form.serial = e.target.value;
+    updateSerialWarning(e.target.value);
+  };
+  const lps=document.getElementById("link-prep-select");
+  if(lps) lps.onchange=e=>{
+    const rid=e.target.value;
+    if(rid){
+      const rec=S.records.find(r=>r.id===rid);
+      if(rec){
+        S.form.linkedRecordId=rid;
+        S.form.linkedProtocol=rec.protocol||"";
+        S.form.model=rec.model||"";
+        S.form.serial=rec.serial||"";
+        const mInp=document.getElementById("inp-model");
+        const sInp=document.getElementById("inp-serial");
+        if(mInp)mInp.value=S.form.model;
+        if(sInp)sInp.value=S.form.serial;
+      }
+    } else {
+      S.form.linkedRecordId="";
+      S.form.linkedProtocol="";
+    }
+  };
+  // Set initial warning state based on current serial value
+  if (S.step === 0 && S.form.serial) updateSerialWarning(S.form.serial);
+
+  const bs=document.getElementById("btn-start");
+  if(bs)bs.onclick=()=>{
+    const f = S.form;
+    if(!f.mechanic||!f.model){alert("Selecione o mecânico e informe o modelo.");return;}
+    if(!f.serial||!f.serial.trim()){alert("O número de série é obrigatório.");return;}
+    // Block if serial is installed
+    if(f.type==="envio"){
+      const ir=getInstalacaoForSerial(f.serial);
+      if(ir){alert("🔒 Bloqueado\n\nEste número de série já está vinculado à "+(ir.protocol||"uma instalação")+".\nEsta máquina já foi vendida.");return;}
+      if(isSerialDuplicatePrep(f.serial,"")){alert("🔒 Bloqueado\n\nJá existe uma preparação com o número de série "+f.serial+".");return;}
+    }
+    if(f.type==="instalacao"){
+      const ir=getInstalacaoForSerial(f.serial);
+      if(ir){alert("🔒 Bloqueado\n\nEste número de série já está vinculado à "+(ir.protocol||"uma instalação anterior")+".\nNão é possível criar nova instalação.");return;}
+    }
+    S.step=1;S.expanded={};render();
+  };
+  document.querySelectorAll(".item-hdr").forEach(el=>el.onclick=()=>{persist();S.expanded[el.dataset.id]=!S.expanded[el.dataset.id];render();});
+  document.querySelectorAll(".st-btn").forEach(b=>b.onclick=()=>{persist();S.form.items[b.dataset.id]=S.form.items[b.dataset.id]===b.dataset.val?undefined:b.dataset.val;render();});
+  document.querySelectorAll(".ni").forEach(n=>n.oninput=e=>S.form.notes[n.dataset.id]=e.target.value);
+  const obs=document.getElementById("obs"); if(obs)obs.oninput=e=>S.form.observation=e.target.value;
+  document.querySelectorAll(".ph-add,.ph-chg").forEach(b=>b.onclick=()=>{document.querySelector(`.pi[data-id="${b.dataset.id}"]`)?.click();});
+  document.querySelectorAll(".pi").forEach(inp=>inp.onchange=e=>{persist();readFile(e.target.files?.[0],data=>{S.form.photos[inp.dataset.id]=data;render();});});
+  const ca=document.getElementById("comp-add"); if(ca)ca.onclick=()=>document.getElementById("comp-pi")?.click();
+  const cpi=document.getElementById("comp-pi"); if(cpi)cpi.onchange=e=>{persist();readFile(e.target.files?.[0],data=>{if(!S.form.compPhotos)S.form.compPhotos=[];S.form.compPhotos.push(data);render();});};
+  document.querySelectorAll(".comp-rm").forEach(b=>b.onclick=()=>{persist();S.form.compPhotos.splice(parseInt(b.dataset.idx),1);render();});
+  const cn=document.getElementById("comp-note"); if(cn)cn.oninput=e=>S.form.compNote=e.target.value;
+  const bf=document.getElementById("btn-finish"); if(bf)bf.onclick=()=>{persist();S.step=2;render();};
+  const openSigBtn=document.getElementById("open-sig-btn"); if(openSigBtn)openSigBtn.onclick=()=>{persist();openSignaturePad();};
+  const clearSigBtn=document.getElementById("clear-sig-btn"); if(clearSigBtn)clearSigBtn.onclick=()=>{persist();S.form.clientSignature=null;render();};
+  const clientNameInp=document.getElementById("client-name-input"); if(clientNameInp)clientNameInp.oninput=e=>S.form.clientName=e.target.value;
+  const bsave=document.getElementById("btn-save"); if(bsave)bsave.onclick=()=>{if(!S.saving)submitForm();};
+
+  document.querySelectorAll(".rec-btn").forEach(b=>b.onclick=()=>{const r=S.records.find(r=>r.id===b.dataset.rid);if(r){S.selected=r;S.screen="detail";render();}});
+
+
+
+  // PDF button
+  const pdfBtn = document.querySelector(".pdf-btn");
+  if(pdfBtn) pdfBtn.onclick = async () => {
+    pdfBtn.textContent = "⏳ Gerando PDF...";
+    pdfBtn.style.opacity = "0.7";
+    pdfBtn.disabled = true;
+    try {
+      await generatePDF(S.selected);
+    } catch(e) {
+      alert("Erro ao gerar PDF. Tente novamente.");
+      console.error(e);
+    }
+    pdfBtn.textContent = "📄 Gerar relatório PDF";
+    pdfBtn.style.opacity = "1";
+    pdfBtn.disabled = false;
+  };
+
+  // Edit button
+  const editBtn = document.querySelector(".edit-btn");
+  if(editBtn) editBtn.onclick = () => {
+    if(!checkPass()) { alert("Senha incorreta."); return; }
+    const r = S.selected;
+    S.editingRecord = JSON.parse(JSON.stringify(r));
+    S.form = {
+      mechanic: r.mechanic, type: r.type, model: r.model, serial: r.serial||"",
+      items: {...(r.items||{})}, notes: {...(r.notes||{})}, photos: {...(r.photos||{})},
+      observation: r.observation||"", compNote: r.compNote||"", compPhotos: [...(r.compPhotos||[])]
+    };
+    S.screen = "edit"; S.step = 0; S.expanded = {}; render();
+  };
+
+  // History button
+  const histBtn = document.querySelector(".hist-btn");
+  if(histBtn) histBtn.onclick = () => {
+    if(!checkPass()) { alert("Senha incorreta."); return; }
+    S.screen = "history"; render();
+  };
+
+  // Delete button
+  const delBtn = document.querySelector(".del-btn");
+  if(delBtn) delBtn.onclick = async () => {
+    if(!checkPass()) { alert("Senha incorreta."); return; }
+    if(!confirm(`Excluir o registro "${S.selected.model}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await S.db.collection("checklists").doc(S.selected.id).delete();
+      S.screen = "records"; S.selected = null;
+      await loadRecords();
+    } catch(e) { alert("Erro ao excluir. Tente novamente."); }
+  };
+}
+
+// ── INIT ─────────────────────────────────────────────────
+// ── GERAÇÃO DE PDF ───────────────────────────────────────
+async function generatePDF(record) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const cl = CHECKLISTS[record.type];
+  const pageW = 210, pageH = 297, margin = 14, contentW = pageW - margin * 2;
+  let y = 0;
+
+  const colors = {
+    primary:   [24,  95, 165],
+    success:   [59, 109,  17],
+    successBg: [234,243,222],
+    danger:    [163, 45,  45],
+    dangerBg:  [252,235,235],
+    warning:   [133, 79,  11],
+    warningBg: [250,238,218],
+    gray:      [120,120,115],
+    grayBg:    [245,245,243],
+    dark:      [ 26, 26, 24],
+    white:     [255,255,255],
+    border:    [220,220,215],
+  };
+
+  function setColor(c) { doc.setTextColor(...c); }
+  function setFill(c)  { doc.setFillColor(...c); }
+  function setDraw(c)  { doc.setDrawColor(...c); }
+
+  function checkPage(needed = 10) {
+    if (y + needed > pageH - 16) {
+      doc.addPage();
+      y = 16;
+      drawPageFooter();
+    }
+  }
+
+  function drawPageFooter() {
+    const pg = doc.internal.getCurrentPageInfo().pageNumber;
+    setColor(colors.gray);
+    doc.setFontSize(8);
+    doc.text(`Grupo NS Oficina · Assistência Técnica RICOMA`, margin, pageH - 8);
+    doc.text(`Página ${pg}`, pageW - margin, pageH - 8, { align: 'right' });
+    setDraw(colors.border);
+    doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
+  }
+
+  // ── HEADER ──
+  setFill(colors.primary);
+  doc.rect(0, 0, pageW, 42, 'F');
+
+  // Logo area
+  setColor(colors.white);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Grupo NS Oficina', margin, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Assistência Técnica · Máquinas RICOMA', margin, 23);
+
+  // Report title right side
+  doc.setFontSize(9);
+  doc.text(cl.label.toUpperCase(), pageW - margin, 14, { align: 'right' });
+  doc.setFontSize(8);
+  doc.text(new Date(record.date).toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' }), pageW - margin, 20, { align: 'right' });
+  doc.text(new Date(record.date).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }), pageW - margin, 26, { align: 'right' });
+
+  // Divider line in header
+  doc.setLineWidth(0.3);
+  setDraw([255,255,255,0.3]);
+  doc.line(margin, 32, pageW - margin, 32);
+
+  // Subtitle
+  doc.setFontSize(8);
+  setColor([200, 220, 245]);
+  doc.text('RELATÓRIO DE VERIFICAÇÃO DE EQUIPAMENTO', margin, 38);
+
+  y = 50;
+
+  // ── MACHINE INFO CARD ──
+  setFill(colors.grayBg);
+  setDraw(colors.border);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, y, contentW, 28, 2, 2, 'FD');
+
+  setColor(colors.gray);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DADOS DO EQUIPAMENTO', margin + 4, y + 7);
+
+  doc.setLineWidth(0.2);
+  setDraw(colors.border);
+  doc.line(margin + 4, y + 9, margin + contentW - 4, y + 9);
+
+  const col1 = margin + 4, col2 = margin + contentW / 2 + 2;
+  const di2 = record.deviceInfo || {};
+  const cardH = di2.device ? 38 : 28;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  setColor(colors.dark);
+
+  doc.text('Modelo:', col1, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.text(record.model || '—', col1 + 18, y + 15);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('N° Série:', col2, y + 15);
+  doc.setFont('helvetica', 'normal');
+  doc.text(record.serial || '—', col2 + 20, y + 15);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Mecânico:', col1, y + 22);
+  doc.setFont('helvetica', 'normal');
+  doc.text(record.mechanic || '—', col1 + 22, y + 22);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Data:', col2, y + 22);
+  doc.setFont('helvetica', 'normal');
+  doc.text(new Date(record.date).toLocaleDateString('pt-BR'), col2 + 13, y + 22);
+
+  if (di2.device) {
+    setColor(colors.gray);
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Assinatura digital:', col1, y + 30);
+    doc.setFont('helvetica', 'normal');
+    const deviceStr = (di2.device || '') + ' · ' + (di2.os || '') + ' · ' + (di2.browser || '');
+    doc.text(doc.splitTextToSize(deviceStr, contentW - 38)[0], col1 + 34, y + 30);
+    const gpsStr = di2.gps ? ('GPS: ' + di2.gps.lat + ', ' + di2.gps.lng + ' (±' + di2.gps.accuracy + ')') : 'GPS: não fornecido';
+    doc.text(gpsStr, col1, y + 36);
+  }
+
+  y += cardH + 6;
+
+  // ── SUMMARY BADGES ──
+  const items = cl.items || [];
+  const okCount    = items.filter(i => record.items?.[i.id] === 'ok').length;
+  const probCount  = items.filter(i => record.items?.[i.id] === 'problema').length;
+  const naCount    = items.filter(i => record.items?.[i.id] === 'na').length;
+  const uncCount   = items.filter(i => !record.items?.[i.id]).length;
+
+  const badgeW = (contentW - 9) / 4, badgeH = 16;
+  const badges = [
+    { label: 'OK', count: okCount, bg: colors.successBg, text: colors.success },
+    { label: 'Problema', count: probCount, bg: colors.dangerBg, text: colors.danger },
+    { label: 'N/A', count: naCount, bg: colors.grayBg, text: colors.gray },
+    { label: 'Não verif.', count: uncCount, bg: colors.warningBg, text: colors.warning },
+  ];
+
+  badges.forEach((b, i) => {
+    const bx = margin + i * (badgeW + 3);
+    setFill(b.bg); setDraw(colors.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(bx, y, badgeW, badgeH, 2, 2, 'FD');
+    setColor(b.text);
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.text(b.label, bx + badgeW / 2, y + 5.5, { align: 'center' });
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+    doc.text(String(b.count), bx + badgeW / 2, y + 13, { align: 'center' });
+  });
+
+  y += 22;
+
+  // ── SECTION TITLE: ITENS ──
+  setFill(colors.primary);
+  doc.rect(margin, y, contentW, 8, 'F');
+  setColor(colors.white);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text('VERIFICAÇÃO DOS ITENS', margin + 4, y + 5.5);
+  y += 12;
+
+  // ── CHECKLIST ITEMS ──
+  items.forEach((item, idx) => {
+    const st = record.items?.[item.id];
+    const note = record.notes?.[item.id];
+    const hasNote = note && note.trim().length > 0;
+    const rowH = hasNote ? 16 : 10;
+
+    checkPage(rowH + 3);
+
+    const bg = st === 'ok' ? colors.successBg : st === 'problema' ? colors.dangerBg : st === 'na' ? colors.grayBg : [255,255,255];
+    const tc = st === 'ok' ? colors.success : st === 'problema' ? colors.danger : st === 'na' ? colors.gray : colors.gray;
+    const statusLabel = st === 'ok' ? 'OK' : st === 'problema' ? 'PROBLEMA' : st === 'na' ? 'N/A' : '—';
+
+    setFill(bg); setDraw(colors.border);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(margin, y, contentW, rowH, 1, 1, 'FD');
+
+    // Number
+    setColor(colors.gray);
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.text(String(idx + 1).padStart(2, '0'), margin + 3, y + 6.5);
+
+    // Item label
+    setColor(colors.dark);
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+    doc.text(item.label, margin + 10, y + 6.5);
+
+    // Status badge
+    const statusW = 22;
+    const stBg = st === 'ok' ? colors.success : st === 'problema' ? colors.danger : colors.gray;
+    setFill(stBg);
+    doc.roundedRect(margin + contentW - statusW - 2, y + 2, statusW, 6, 1, 1, 'F');
+    setColor(colors.white);
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+    doc.text(statusLabel, margin + contentW - statusW / 2 - 2, y + 6, { align: 'center' });
+
+    // Note
+    if (hasNote) {
+      setColor(colors.gray);
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
+      const noteLines = doc.splitTextToSize(`Obs: ${note}`, contentW - 40);
+      doc.text(noteLines[0], margin + 10, y + 12);
+    }
+
+    y += rowH + 1.5;
+  });
+
+  // ── OBSERVATIONS ──
+  if (record.observation && record.observation.trim()) {
+    checkPage(24);
+    y += 4;
+    setFill(colors.grayBg); setDraw(colors.border);
+    doc.setLineWidth(0.3);
+    const obsLines = doc.splitTextToSize(record.observation, contentW - 8);
+    const obsH = 14 + obsLines.length * 5;
+    doc.roundedRect(margin, y, contentW, obsH, 2, 2, 'FD');
+    setColor(colors.gray);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text('OBSERVAÇÕES GERAIS', margin + 4, y + 6);
+    setColor(colors.dark);
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+    doc.text(obsLines, margin + 4, y + 12);
+    y += obsH + 4;
+  }
+
+  // ── COMPLEMENTO ──
+  if (record.compNote && record.compNote.trim()) {
+    checkPage(20);
+    y += 2;
+    setFill([255,251,235]); setDraw(colors.border);
+    doc.setLineWidth(0.3);
+    const compLines = doc.splitTextToSize(record.compNote, contentW - 8);
+    const compH = 14 + compLines.length * 5;
+    doc.roundedRect(margin, y, contentW, compH, 2, 2, 'FD');
+    setColor(colors.warning);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text('COMPLEMENTO', margin + 4, y + 6);
+    setColor(colors.dark);
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+    doc.text(compLines, margin + 4, y + 12);
+    y += compH + 4;
+  }
+
+  // ── HELPER: add image preserving aspect ratio ──
+  function addImageFit(dataUrl, x, maxW, maxH) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        let drawW = maxW, drawH = (ih / iw) * maxW;
+        if (drawH > maxH) { drawH = maxH; drawW = (iw / ih) * maxH; }
+        const cx = x + (maxW - drawW) / 2;
+        try { doc.addImage(dataUrl, 'JPEG', cx, y, drawW, drawH, '', 'MEDIUM'); } catch(e) {}
+        resolve(drawH);
+      };
+      img.onerror = () => resolve(0);
+      img.src = dataUrl;
+    });
+  }
+
+  // ── COMPLEMENT PHOTOS (2 per row) ──
+  const compPhotos = record.compPhotos || [];
+  if (compPhotos.length > 0) {
+    checkPage(20);
+    y += 2;
+    setFill(colors.grayBg); setDraw(colors.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(margin, y, contentW, 8, 2, 2, 'FD');
+    setColor(colors.gray);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text(`FOTOS COMPLEMENTARES (${compPhotos.length})`, margin + 4, y + 5.5);
+    y += 12;
+
+    const colW = (contentW - 4) / 2;
+    const maxPhotoH = 65;
+    for (let i = 0; i < compPhotos.length; i += 2) {
+      checkPage(maxPhotoH + 12);
+      const rowStartY = y;
+      let leftH = 0, rightH = 0;
+
+      // Left photo
+      try {
+        const img1 = new Image();
+        await new Promise(res => {
+          img1.onload = () => {
+            const iw=img1.naturalWidth, ih=img1.naturalHeight;
+            let dw=colW, dh=(ih/iw)*colW;
+            if(dh>maxPhotoH){dh=maxPhotoH;dw=(iw/ih)*maxPhotoH;}
+            const cx=margin+(colW-dw)/2;
+            try{doc.addImage(compPhotos[i],'JPEG',cx,rowStartY,dw,dh,'','MEDIUM');}catch(e){}
+            setColor(colors.gray); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+            doc.text(`Foto ${i+1}`, margin+colW/2, rowStartY+dh+4, {align:'center'});
+            leftH = dh + 6;
+            res();
+          };
+          img1.onerror=()=>res();
+          img1.src=compPhotos[i];
+        });
+      } catch(e){}
+
+      // Right photo (if exists)
+      if (compPhotos[i+1]) {
+        try {
+          const img2 = new Image();
+          await new Promise(res => {
+            img2.onload = () => {
+              const iw=img2.naturalWidth, ih=img2.naturalHeight;
+              let dw=colW, dh=(ih/iw)*colW;
+              if(dh>maxPhotoH){dh=maxPhotoH;dw=(iw/ih)*maxPhotoH;}
+              const rx=margin+colW+4;
+              const cx=rx+(colW-dw)/2;
+              try{doc.addImage(compPhotos[i+1],'JPEG',cx,rowStartY,dw,dh,'','MEDIUM');}catch(e){}
+              setColor(colors.gray); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+              doc.text(`Foto ${i+2}`, rx+colW/2, rowStartY+dh+4, {align:'center'});
+              rightH = dh + 6;
+              res();
+            };
+            img2.onerror=()=>res();
+            img2.src=compPhotos[i+1];
+          });
+        } catch(e){}
+      }
+
+      y += Math.max(leftH, rightH) + 4;
+    }
+  }
+
+  // ── ITEM PHOTOS (2 per row) ──
+  const itemsWithPhotos = items.filter(item => record.photos?.[item.id]);
+  if (itemsWithPhotos.length > 0) {
+    checkPage(20);
+    y += 2;
+    setFill(colors.grayBg); setDraw(colors.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(margin, y, contentW, 8, 2, 2, 'FD');
+    setColor(colors.gray);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text(`FOTOS DOS ITENS (${itemsWithPhotos.length})`, margin + 4, y + 5.5);
+    y += 12;
+
+    const colW2 = (contentW - 4) / 2;
+    const maxItemH = 65;
+    for (let i = 0; i < itemsWithPhotos.length; i += 2) {
+      checkPage(maxItemH + 20);
+      const rowStartY = y;
+      let leftH = 0, rightH = 0;
+
+      // Left item photo
+      const item1 = itemsWithPhotos[i];
+      setColor(colors.dark); doc.setFontSize(7); doc.setFont('helvetica','bold');
+      const lbl1 = doc.splitTextToSize(item1.label, colW2 - 2);
+      doc.text(lbl1, margin, rowStartY + 5);
+      const labelH = lbl1.length * 4.5;
+      try {
+        const img1 = new Image();
+        await new Promise(res => {
+          img1.onload = () => {
+            const iw=img1.naturalWidth, ih=img1.naturalHeight;
+            let dw=colW2, dh=(ih/iw)*colW2;
+            if(dh>maxItemH){dh=maxItemH;dw=(iw/ih)*maxItemH;}
+            const cx=margin+(colW2-dw)/2;
+            try{doc.addImage(record.photos[item1.id],'JPEG',cx,rowStartY+labelH+3,dw,dh,'','MEDIUM');}catch(e){}
+            leftH = labelH + dh + 5;
+            res();
+          };
+          img1.onerror=()=>res();
+          img1.src=record.photos[item1.id];
+        });
+      } catch(e){}
+
+      // Right item photo (if exists)
+      if (itemsWithPhotos[i+1]) {
+        const item2 = itemsWithPhotos[i+1];
+        const rx = margin + colW2 + 4;
+        setColor(colors.dark); doc.setFontSize(7); doc.setFont('helvetica','bold');
+        const lbl2 = doc.splitTextToSize(item2.label, colW2 - 2);
+        doc.text(lbl2, rx, rowStartY + 5);
+        const labelH2 = lbl2.length * 4.5;
+        try {
+          const img2 = new Image();
+          await new Promise(res => {
+            img2.onload = () => {
+              const iw=img2.naturalWidth, ih=img2.naturalHeight;
+              let dw=colW2, dh=(ih/iw)*colW2;
+              if(dh>maxItemH){dh=maxItemH;dw=(iw/ih)*maxItemH;}
+              const cx=rx+(colW2-dw)/2;
+              try{doc.addImage(record.photos[item2.id],'JPEG',cx,rowStartY+labelH2+3,dw,dh,'','MEDIUM');}catch(e){}
+              rightH = labelH2 + dh + 5;
+              res();
+            };
+            img2.onerror=()=>res();
+            img2.src=record.photos[item2.id];
+          });
+        } catch(e){}
+      }
+
+      y += Math.max(leftH, rightH) + 6;
+    }
+  }
+
+  // ── SIGNATURE AREA ──
+  checkPage(50);
+  y += 6;
+
+  if (record.clientSignature && record.type === 'instalacao') {
+    // Show actual client signature
+    setFill(colors.grayBg); setDraw(colors.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(margin, y, contentW, 8, 2, 2, 'FD');
+    setColor(colors.gray);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+    doc.text('ASSINATURA DO CLIENTE', margin + 4, y + 5.5);
+    y += 12;
+    if (record.clientName) {
+      setColor(colors.dark);
+      doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text(record.clientName, margin, y + 5);
+      y += 10;
+    }
+    try {
+      const sigFormat = record.clientSignature.includes('image/png') ? 'PNG' : 'JPEG';
+      // Load image to get real dimensions and preserve aspect ratio
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const iw = img.naturalWidth, ih = img.naturalHeight;
+          const maxW = contentW * 0.65;
+          const maxH = 40;
+          // Calculate proportional size
+          let drawW = maxW;
+          let drawH = (ih / iw) * drawW;
+          if (drawH > maxH) { drawH = maxH; drawW = (iw / ih) * drawH; }
+          // White background box
+          setFill([255,255,255]); setDraw(colors.border);
+          doc.setLineWidth(0.4);
+          doc.roundedRect(margin, y, drawW + 4, drawH + 4, 2, 2, 'FD');
+          // Insert image preserving aspect ratio
+          doc.addImage(record.clientSignature, sigFormat, margin + 2, y + 2, drawW, drawH, '', 'FAST');
+          // Caption
+          setColor(colors.gray);
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+          doc.text(
+            'Assinado digitalmente em ' + new Date(record.date).toLocaleDateString('pt-BR') + ' às ' + new Date(record.date).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+            margin, y + drawH + 8
+          );
+          y += drawH + 14;
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = record.clientSignature;
+      });
+    } catch(e) { console.warn('Erro assinatura PDF:', e); }
+    y += 4;
+  }
+
+  setDraw(colors.border);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y + 18, margin + 70, y + 18);
+  doc.line(margin + contentW - 70, y + 18, margin + contentW, y + 18);
+  setColor(colors.gray);
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+  doc.text('Assinatura do Mecânico', margin + 35, y + 23, { align: 'center' });
+  doc.text('Assinatura do Responsável', margin + contentW - 35, y + 23, { align: 'center' });
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  setColor(colors.dark);
+  doc.text(record.mechanic, margin + 35, y + 28, { align: 'center' });
+
+  // Footer on all pages
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    drawPageFooter();
+  }
+
+  // ── SAVE ──
+  const dateStr = new Date(record.date).toLocaleDateString('pt-BR').replace(/\//g, '-');
+  const modelStr = (record.model || 'maquina').replace(/\s+/g, '_');
+  doc.save(`Checklist_${modelStr}_${dateStr}.pdf`);
+}
+
+function rDashboard(app) {
+  const w = hdr(app, "Dashboard", "home");
+  if (!S.dashTab) S.dashTab = "envio";
+  const tab = S.dashTab;
+  const recs = S.records.filter(r => r.type === tab);
+
+  // Tabs
+  let tabHtml = '<div style="display:flex;gap:6px;margin-bottom:16px;">';
+  Object.entries(CHECKLISTS).forEach(([k, v]) => {
+    const active = tab === k;
+    const short = v.label.replace("Preparação para ","").replace("Checklist de ","");
+    const count = S.records.filter(r => r.type === k).length;
+    tabHtml += '<button class="dash-tab-btn" data-tab="'+k+'" style="flex:1;padding:9px 6px;border-radius:var(--radius);font-size:12px;font-weight:'+(active?"600":"400")+';border:'+(active?"2px solid var(--info)":"0.5px solid var(--border)")+';background:'+(active?"var(--info-bg)":"var(--bg)")+';color:'+(active?"var(--info)":"var(--text2)")+';text-align:center;">';
+    tabHtml += short + '<br><span style="font-size:11px;opacity:0.8;">'+count+' reg.</span>';
+    tabHtml += '</button>';
+  });
+  tabHtml += '</div>';
+  w.insertAdjacentHTML("beforeend", tabHtml);
+  document.querySelectorAll(".dash-tab-btn").forEach(b => b.onclick = () => { S.dashTab = b.dataset.tab; render(); });
+  const now = new Date();
+  const thisMonth = recs.filter(r => { const d=new Date(r.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+  const lastMonth = recs.filter(r => { const d=new Date(r.date); const lm=new Date(now.getFullYear(),now.getMonth()-1,1); return d.getMonth()===lm.getMonth()&&d.getFullYear()===lm.getFullYear(); });
+
+  // Per mechanic stats
+  const byMechanic = {};
+  MECHANICS.forEach(m => { byMechanic[m] = recs.filter(r => r.mechanic===m).length; });
+
+  // Problem rate
+  const totalItems = recs.reduce((sum,r) => sum + (CHECKLISTS[r.type]?.items?.length||0), 0);
+  const totalProblems = recs.reduce((sum,r) => sum + Object.values(r.items||{}).filter(v=>v==="problema").length, 0);
+  const problemRate = totalItems > 0 ? ((totalProblems/totalItems)*100).toFixed(1) : 0;
+
+  // Monthly data (last 6 months)
+  const months = [];
+  for (let i=5; i>=0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const label = d.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}).replace(" de ","/"  );
+    const count = recs.filter(r => { const rd=new Date(r.date); return rd.getMonth()===d.getMonth()&&rd.getFullYear()===d.getFullYear(); }).length;
+    months.push({label, count});
+  }
+  const maxCount = Math.max(...months.map(m=>m.count), 1);
+
+  // Items breakdown for this type
+  const typeItems = CHECKLISTS[tab]?.items || [];
+  const itemOkRate = {};
+  typeItems.forEach(item => {
+    const total = recs.filter(r => r.items?.[item.id]).length;
+    const ok = recs.filter(r => r.items?.[item.id]==="ok").length;
+    itemOkRate[item.id] = { label: item.label, ok, total, prob: recs.filter(r=>r.items?.[item.id]==="problema").length };
+  });
+
+  // Most common problems
+  const problemItems = {};
+  recs.forEach(r => {
+    (CHECKLISTS[r.type]?.items||[]).forEach(item => {
+      if (r.items?.[item.id]==="problema") {
+        problemItems[item.label] = (problemItems[item.label]||0)+1;
+      }
+    });
+  });
+  const topProblems = Object.entries(problemItems).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Chamados stats
+  const totalChamados = chamados.length;
+  const chamadosAbertos = chamados.filter(c=>c.status==="aberto").length;
+  const chamadosResolvidos = chamados.filter(c=>c.status==="resolvido").length;
+
+  let html = "";
+
+  // ── SECTION: Resumo do mês ──
+  html += '<p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Resumo do mês atual</p>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;">';
+  html += kpi("📋", thisMonth.length, "Checklists", "var(--info-bg)", "var(--info)");
+  html += kpi("📅", lastMonth.length, "Mês anterior", "var(--bg2)", "var(--text2)");
+  html += kpi("⚠️", totalProblems, "Itens c/ problema", "var(--warning-bg)", "var(--warning)");
+  html += kpi("📊", problemRate+"%", "Taxa de problemas", "var(--danger-bg)", "var(--danger)");
+  html += '</div>';
+
+  // ── SECTION: Por técnico ──
+  html += '<p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Checklists por técnico (total)</p>';
+  html += '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:1.5rem;">';
+  const maxMec = Math.max(...Object.values(byMechanic), 1);
+  MECHANICS.forEach(m => {
+    const count = byMechanic[m]||0;
+    const pct = Math.round((count/maxMec)*100);
+    html += '<div style="margin-bottom:12px;">';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">';
+    html += '<span style="font-size:13px;font-weight:500;">'+m+'</span>';
+    html += '<span style="font-size:13px;color:var(--text2);">'+count+' checklist'+(count!==1?'s':'')+'</span>';
+    html += '</div>';
+    html += '<div style="height:8px;background:var(--bg3,var(--bg));border-radius:4px;overflow:hidden;">';
+    html += '<div style="height:8px;width:'+pct+'%;background:var(--info);border-radius:4px;transition:width 0.3s;"></div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  // ── SECTION: Últimos 6 meses ──
+  html += '<p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Checklists — últimos 6 meses</p>';
+  html += '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:1.5rem;">';
+  html += '<div style="display:flex;align-items:flex-end;gap:6px;height:100px;">';
+  months.forEach(m => {
+    const h = maxCount > 0 ? Math.max(Math.round((m.count/maxCount)*80), m.count>0?8:2) : 2;
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">';
+    html += '<span style="font-size:10px;color:var(--text3);">'+(m.count>0?m.count:'')+'</span>';
+    html += '<div style="width:100%;height:'+h+'px;background:'+(m.count>0?'var(--info)':'var(--bg3,var(--border))')+';border-radius:4px 4px 0 0;"></div>';
+    html += '<span style="font-size:9px;color:var(--text3);text-align:center;">'+m.label+'</span>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // ── SECTION: Taxa de aprovação por item ──
+  if (recs.length > 0) {
+    html += '<p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Taxa de aprovação por item</p>';
+    html += '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:1.5rem;">';
+    typeItems.slice(0, 8).forEach(item => {
+      const d = itemOkRate[item.id] || { ok:0, total:0, prob:0 };
+      const pct = d.total > 0 ? Math.round((d.ok/d.total)*100) : 0;
+      const barColor = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+      html += '<div style="margin-bottom:10px;">';
+      html += '<div style="display:flex;justify-content:space-between;margin-bottom:3px;">';
+      html += '<span style="font-size:12px;">'+item.label+'</span>';
+      html += '<span style="font-size:12px;font-weight:600;color:'+barColor+';">'+pct+'%</span>';
+      html += '</div>';
+      html += '<div style="height:6px;background:var(--bg);border-radius:3px;">';
+      html += '<div style="height:6px;width:'+pct+'%;background:'+barColor+';border-radius:3px;"></div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  // ── SECTION: Problemas mais frequentes ──
+  if (topProblems.length > 0) {
+    html += '<p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Itens com mais problemas</p>';
+    html += '<div style="background:var(--bg2);border-radius:var(--radius-lg);padding:14px;margin-bottom:1.5rem;">';
+    topProblems.forEach(([label, count], i) => {
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border);">';
+      html += '<span style="font-size:12px;font-weight:700;color:var(--text3);min-width:18px;">'+(i+1)+'</span>';
+      html += '<span style="flex:1;font-size:13px;">'+label+'</span>';
+      html += '<span class="pill" style="background:var(--danger-bg);color:var(--danger);">'+count+'×</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // ── SECTION: Chamados ──
+  html += '<p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Chamados — Histórico de Problemas</p>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1.5rem;">';
+  html += '<div style="background:var(--bg2);border-radius:var(--radius);padding:10px;text-align:center;"><p style="font-size:20px;font-weight:700;">'+totalChamados+'</p><p style="font-size:10px;color:var(--text3);margin-top:2px;">Total</p></div>';
+  html += '<div style="background:var(--danger-bg);border-radius:var(--radius);padding:10px;text-align:center;"><p style="font-size:20px;font-weight:700;color:var(--danger);">'+chamadosAbertos+'</p><p style="font-size:10px;color:var(--danger);margin-top:2px;">Abertos</p></div>';
+  html += '<div style="background:var(--success-bg);border-radius:var(--radius);padding:10px;text-align:center;"><p style="font-size:20px;font-weight:700;color:var(--success);">'+chamadosResolvidos+'</p><p style="font-size:10px;color:var(--success);margin-top:2px;">Resolvidos</p></div>';
+  html += '</div>';
+
+  html += '<p style="font-size:11px;color:var(--text3);text-align:center;padding-bottom:2rem;">Dados atualizados em tempo real</p>';
+
+  w.insertAdjacentHTML("beforeend", html);
+}
+
+function kpi(icon, value, label, bg, color) {
+  return '<div style="background:'+bg+';border-radius:var(--radius-lg);padding:14px;">' +
+    '<p style="font-size:22px;margin-bottom:2px;">'+icon+'</p>' +
+    '<p style="font-size:24px;font-weight:700;color:'+color+';">'+value+'</p>' +
+    '<p style="font-size:12px;color:var(--text2);margin-top:2px;">'+label+'</p>' +
+    '</div>';
+}
+
+// ── ASSINATURA ───────────────────────────────────────────
+let sigDrawing = false, sigLastX = 0, sigLastY = 0, sigCtx = null, sigHasMark = false;
+
+function openSignaturePad() {
+  const modal = document.getElementById("sig-modal");
+  if (!modal) { alert("Erro: modal de assinatura não encontrado."); return; }
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  sigHasMark = false;
+
+  // Wait for layout then init canvas
+  setTimeout(() => {
+    const canvas = document.getElementById("sig-canvas");
+    const container = canvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    sigCtx = canvas.getContext("2d");
+    sigCtx.scale(dpr, dpr);
+    sigCtx.strokeStyle = "#111";
+    sigCtx.lineWidth = 2.5;
+    sigCtx.lineCap = "round";
+    sigCtx.lineJoin = "round";
+
+    function getXY(e) {
+      const r = canvas.getBoundingClientRect();
+      const src = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left), y: (src.clientY - r.top) };
+    }
+
+    canvas.onpointerdown = e => {
+      e.preventDefault();
+      sigDrawing = true;
+      const p = getXY(e);
+      sigCtx.beginPath();
+      sigCtx.moveTo(p.x, p.y);
+      const hint = document.getElementById("sig-hint");
+      if (hint) hint.style.display = "none";
+      try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+    };
+    canvas.onpointermove = e => {
+      e.preventDefault();
+      if (!sigDrawing) return;
+      const p = getXY(e);
+      sigCtx.lineTo(p.x, p.y);
+      sigCtx.stroke();
+      sigCtx.beginPath();
+      sigCtx.moveTo(p.x, p.y);
+      sigHasMark = true;
+    };
+    canvas.onpointerup = e => { e.preventDefault(); sigDrawing = false; sigCtx.beginPath(); };
+    canvas.onpointercancel = () => { sigDrawing = false; };
+
+    document.getElementById("sig-clear").onclick = () => {
+      sigCtx.clearRect(0, 0, w, h);
+      sigHasMark = false;
+      const hint = document.getElementById("sig-hint");
+      if (hint) hint.style.display = "block";
+    };
+
+    document.getElementById("sig-save").onclick = () => {
+      if (!sigHasMark) { alert("Por favor, assine antes de confirmar."); return; }
+      const off = document.createElement("canvas");
+      off.width = canvas.width; off.height = canvas.height;
+      const offCtx = off.getContext("2d");
+      offCtx.fillStyle = "#ffffff";
+      offCtx.fillRect(0, 0, off.width, off.height);
+      offCtx.drawImage(canvas, 0, 0);
+      persist();
+      S.form.clientSignature = off.toDataURL("image/jpeg", 0.85);
+      closeSignaturePad();
+      render();
+    };
+
+    document.getElementById("sig-cancel").onclick = closeSignaturePad;
+  }, 100);
+}
+
+function closeSignaturePad() {
+  document.getElementById("sig-modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function openLightbox(src, caption) {
+  const lb = document.getElementById("lightbox");
+  const img = document.getElementById("lightbox-img");
+  const cap = document.getElementById("lightbox-caption");
+  if (!lb) return;
+  img.src = src;
+  cap.textContent = caption || "";
+  lb.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function closeLightbox() {
+  const lb = document.getElementById("lightbox");
+  if (!lb) return;
+  lb.style.display = "none";
+  document.getElementById("lightbox-img").src = "";
+  document.body.style.overflow = "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const lbClose = document.getElementById("lightbox-close");
+  if (lbClose) lbClose.onclick = closeLightbox;
+  const lb = document.getElementById("lightbox");
+  if (lb) lb.onclick = e => { if (e.target === lb) closeLightbox(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { closeLightbox(); closeSignaturePad(); } });
+});
+
+
+window.onload = () => {
+  try {
+    if (isAuthenticated()) {
+      initFirebase();
+    } else {
+      showLogin();
+    }
+  } catch(e) {
+    console.error("Init error:", e);
+    document.getElementById("app").innerHTML =
+      '<div style="padding:2rem;color:#a32d2d;"><p style="font-weight:600;margin-bottom:8px;">⚠️ Erro ao carregar</p><p style="font-size:13px;">Recarregue a página. Se persistir, entre em contato com o suporte.</p><p style="font-size:11px;margin-top:8px;opacity:0.6;">'+e.message+'</p></div>';
+  }
+};
+</script>
+</body>
+</html>
